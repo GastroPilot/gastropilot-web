@@ -1,6 +1,50 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const APP_VERSION_RAW = (process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0").trim();
+
+function formatVersion(raw: string): string {
+  const bare = raw.startsWith("v") ? raw.slice(1) : raw;
+  if (/^[0-9a-f]{40}$/i.test(bare)) {
+    return `v${bare.slice(0, 7)}`;
+  }
+  return raw.startsWith("v") ? raw : `v${raw}`;
+}
+
+const APP_VERSION = formatVersion(APP_VERSION_RAW);
+
+function getEnvironment(): string | null {
+  if (typeof window === "undefined") return null;
+  const hostname = window.location.hostname;
+
+  if (hostname === "localhost" || hostname === "127.0.0.1") return "Development";
+
+  const envMatch = hostname.match(/^([^.]+)\.gpilot\.app$/);
+  if (envMatch) {
+    const sub = envMatch[1].toLowerCase();
+    if (sub === "test") return "Test";
+    if (sub === "stage") return "Stage";
+    if (sub === "demo") return "Demo";
+  }
+
+  return null;
+}
+
 export function Footer() {
+  const [environment, setEnvironment] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEnvironment(getEnvironment());
+  }, []);
+
+  const displayVersion = environment
+    ? `${APP_VERSION}-${environment}`
+    : APP_VERSION;
+
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="border-t bg-card">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -43,8 +87,18 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 border-t pt-6 text-[13px] text-muted-foreground/50">
-          &copy; {new Date().getFullYear()} GastroPilot
+        <div className="mt-10 flex items-center gap-2 border-t pt-6 text-[12px] text-muted-foreground/50">
+          <span className={environment ? `font-medium ${
+            environment === "Development" ? "text-[#F95100]" :
+            environment === "Test" ? "text-yellow-500" :
+            environment === "Stage" ? "text-orange-500" :
+            environment === "Demo" ? "text-purple-500" :
+            "text-muted-foreground"
+          }` : ""}>
+            Version {displayVersion}
+          </span>
+          <span className="text-muted-foreground/30">|</span>
+          <span className="font-semibold">Servecta @ {currentYear}</span>
         </div>
       </div>
     </footer>
