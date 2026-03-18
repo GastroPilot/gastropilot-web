@@ -1,10 +1,10 @@
 /**
- * API Konfiguration für das Guest Portal
+ * API Konfiguration für die GastroPilot Webseite
  *
  * Dynamische URL-Generierung basierend auf der Frontend-Domain:
  * - localhost -> localhost:80 (Entwicklung)
- * - guest.gpilot.app -> api.gpilot.app (Prod)
- * - {env}-portal.gpilot.app -> {env}-api.gpilot.app (Demo/Staging/Test)
+ * - gpilot.app -> api.gpilot.app (Prod)
+ * - {env}.gpilot.app -> {env}-api.gpilot.app (Demo/Staging/Test)
  */
 
 function computeApiUrlFromHostname(hostname: string): string {
@@ -12,14 +12,15 @@ function computeApiUrlFromHostname(hostname: string): string {
     return 'http://localhost:80';
   }
 
-  if (hostname === 'gpilot.app' || hostname === 'guest.gpilot.app') {
+  // Prod: gpilot.app oder www.gpilot.app
+  if (hostname === 'gpilot.app' || hostname === 'www.gpilot.app') {
     return 'https://api.gpilot.app';
   }
 
-  // {env}-portal.gpilot.app -> {env}-api.gpilot.app (z.B. staging-portal → staging-api)
-  const envPortalMatch = hostname.match(/^([^-]+)-portal\.gpilot\.app$/);
-  if (envPortalMatch) {
-    return `https://${envPortalMatch[1]}-api.gpilot.app`;
+  // {env}.gpilot.app -> {env}-api.gpilot.app (z.B. test.gpilot.app → test-api.gpilot.app)
+  const envMatch = hostname.match(/^([^.]+)\.gpilot\.app$/);
+  if (envMatch) {
+    return `https://${envMatch[1]}-api.gpilot.app`;
   }
 
   return 'http://localhost:80';
