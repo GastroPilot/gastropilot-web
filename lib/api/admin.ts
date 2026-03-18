@@ -166,3 +166,116 @@ export const adminReviewsApi = {
 export const adminStatsApi = {
   get: () => adminApi.get<AdminStats>("/admin/stats"),
 };
+
+// ─── Tenant Types ──────────────────────────────────────────────────────────
+
+export interface AdminTenant {
+  id: string;
+  name: string;
+  slug: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  description?: string | null;
+  is_suspended: boolean;
+  subscription_status: string | null;
+  subscription_tier: string | null;
+  settings?: Record<string, unknown>;
+  created_at: string | null;
+  updated_at?: string | null;
+}
+
+export interface AdminTenantCreate {
+  name: string;
+  slug?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  owner_first_name: string;
+  owner_last_name: string;
+  owner_operator_number: string;
+  owner_pin: string;
+}
+
+export const adminTenantsApi = {
+  list: () => adminApi.get<AdminTenant[]>("/admin/tenants"),
+
+  get: (id: string) => adminApi.get<AdminTenant>(`/admin/tenants/${id}`),
+
+  create: (data: AdminTenantCreate) =>
+    adminApi.post<{
+      tenant_id: string;
+      tenant_name: string;
+      owner_id: string;
+      owner_operator_number: string;
+    }>("/admin/tenants", data),
+
+  update: (
+    id: string,
+    data: {
+      name?: string;
+      slug?: string;
+      address?: string;
+      phone?: string;
+      email?: string;
+      settings?: Record<string, unknown>;
+    }
+  ) => adminApi.patch<{ id: string; name: string }>(`/admin/tenants/${id}`, data),
+
+  delete: (id: string) =>
+    adminApi.delete<{ deleted: boolean }>(`/admin/tenants/${id}`),
+
+  toggleSuspension: (id: string, is_suspended: boolean) =>
+    adminApi.patch<{ id: string; name: string; is_suspended: boolean }>(
+      `/admin/tenants/${id}/suspend`,
+      { is_suspended }
+    ),
+};
+
+// ─── Platform Admin Types ──────────────────────────────────────────────────
+
+export interface AdminPlatformAdmin {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  role: string;
+  is_active: boolean;
+  last_login_at: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+}
+
+export const adminPlatformAdminsApi = {
+  list: () =>
+    adminApi.get<AdminPlatformAdmin[]>("/admin/platform-admins"),
+
+  get: (id: string) =>
+    adminApi.get<AdminPlatformAdmin>(`/admin/platform-admins/${id}`),
+
+  create: (data: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    password: string;
+  }) =>
+    adminApi.post<AdminPlatformAdmin>("/admin/platform-admins", data),
+
+  update: (
+    id: string,
+    data: {
+      first_name?: string;
+      last_name?: string;
+      email?: string;
+      password?: string;
+      is_active?: boolean;
+    }
+  ) =>
+    adminApi.patch<AdminPlatformAdmin>(
+      `/admin/platform-admins/${id}`,
+      data
+    ),
+
+  delete: (id: string) =>
+    adminApi.delete<{ deleted: boolean }>(`/admin/platform-admins/${id}`),
+};
