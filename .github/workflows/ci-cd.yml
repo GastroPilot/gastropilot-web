@@ -20,7 +20,7 @@ on:
 
 env:
   NODE_VERSION: '22'
-  DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/gastropilot-guest-portal
+  DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/gastropilot-web
 
 jobs:
   # ============================================
