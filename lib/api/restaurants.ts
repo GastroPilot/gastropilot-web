@@ -83,7 +83,7 @@ export const publicRestaurantsApi = {
     if (params.limit) searchParams.set("limit", params.limit.toString());
 
     const qs = searchParams.toString();
-    const endpoint = `/public/restaurants/${qs ? `?${qs}` : ""}`;
+    const endpoint = qs ? `/public/restaurants?${qs}` : `/public/restaurants/`;
     return serverFetch<PaginatedResponse<PublicRestaurant>>(endpoint);
   },
 
@@ -99,7 +99,7 @@ export const publicRestaurantsApi = {
     if (params.limit) searchParams.set("limit", params.limit.toString());
 
     const qs = searchParams.toString();
-    return api.get<PaginatedResponse<PublicRestaurant>>(`/public/restaurants/${qs ? `?${qs}` : ""}`);
+    return api.get<PaginatedResponse<PublicRestaurant>>(qs ? `/public/restaurants?${qs}` : `/public/restaurants/`);
   },
 
   /** Einzelnes Restaurant laden (Server-safe) */
