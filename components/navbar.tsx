@@ -18,6 +18,7 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationBell } from "@/components/notification-bell";
+import { getDashboardUrl } from "@/lib/dashboard-url";
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -113,7 +114,7 @@ export function Navbar() {
                   )}
                   <div className="my-1 h-px bg-border" />
                   <a
-                    href="https://app.gastropilot.de"
+                    href={getDashboardUrl()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-between rounded-[10px] px-3 py-2 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground"

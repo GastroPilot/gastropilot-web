@@ -9,6 +9,7 @@ import { RestaurantCard } from "@/components/restaurant-card";
 import { useRestaurantSearch } from "@/lib/hooks/use-restaurants";
 import type { AllergenId } from "@/lib/utils";
 import { Search, MapPin, ArrowRight } from "lucide-react";
+import { getDashboardUrl } from "@/lib/dashboard-url";
 
 export default function HomePage() {
   const router = useRouter();
@@ -171,7 +172,7 @@ export default function HomePage() {
                   Mehr erfahren
                 </Link>
                 <a
-                  href="https://app.gastropilot.de"
+                  href={getDashboardUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-full border border-border px-6 py-2.5 text-[14px] font-semibold transition-colors hover:bg-accent"
