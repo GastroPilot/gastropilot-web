@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const APP_VERSION_RAW = (process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0").trim();
-const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE ?? (() => { const d = new Date(); return d.toISOString().slice(0, 10).replace(/-/g, "") + "-" + d.toTimeString().slice(0, 8).replace(/:/g, ""); })();
+const APP_VERSION_RAW = (process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0").trim();
+const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE || (() => { const d = new Date(); return d.toISOString().slice(0, 10).replace(/-/g, "") + "-" + d.toTimeString().slice(0, 8).replace(/:/g, ""); })();
 
 function formatVersion(raw: string): string {
   const bare = raw.startsWith("v") ? raw.slice(1) : raw;
