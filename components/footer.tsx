@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const APP_VERSION_RAW = (process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0").trim();
+const BUILD_DATE = process.env.NEXT_PUBLIC_BUILD_DATE ?? (() => { const d = new Date(); return d.toISOString().slice(0, 10).replace(/-/g, "") + "-" + d.toTimeString().slice(0, 8).replace(/:/g, ""); })();
 
 function formatVersion(raw: string): string {
   const bare = raw.startsWith("v") ? raw.slice(1) : raw;
@@ -15,33 +16,27 @@ function formatVersion(raw: string): string {
 
 const APP_VERSION = formatVersion(APP_VERSION_RAW);
 
-function getEnvironment(): string | null {
-  if (typeof window === "undefined") return null;
+function getEnvironment(): string {
+  if (typeof window === "undefined") return "prod";
   const hostname = window.location.hostname;
 
-  if (hostname === "localhost" || hostname === "127.0.0.1") return "Development";
+  if (hostname === "localhost" || hostname === "127.0.0.1") return "dev";
 
   const envMatch = hostname.match(/^([^.]+)\.gpilot\.app$/);
   if (envMatch) {
     const sub = envMatch[1].toLowerCase();
-    if (sub === "test") return "Test";
-    if (sub === "stage") return "Stage";
-    if (sub === "demo") return "Demo";
+    if (["test", "stage", "staging", "demo"].includes(sub)) return sub;
   }
 
-  return null;
+  return "prod";
 }
 
 export function Footer() {
-  const [environment, setEnvironment] = useState<string | null>(null);
+  const [environment, setEnvironment] = useState("prod");
 
   useEffect(() => {
     setEnvironment(getEnvironment());
   }, []);
-
-  const displayVersion = environment
-    ? `${APP_VERSION}-${environment}`
-    : APP_VERSION;
 
   const currentYear = new Date().getFullYear();
 
@@ -88,14 +83,14 @@ export function Footer() {
         </div>
 
         <div className="mt-10 flex items-center gap-2 border-t pt-6 text-[12px] text-muted-foreground/50">
-          <span className={environment ? `font-medium ${
-            environment === "Development" ? "text-[#F95100]" :
-            environment === "Test" ? "text-yellow-500" :
-            environment === "Stage" ? "text-orange-500" :
-            environment === "Demo" ? "text-purple-500" :
+          <span className={`font-medium ${
+            environment === "dev" ? "text-[#F95100]" :
+            environment === "test" ? "text-yellow-500" :
+            environment === "stage" || environment === "staging" ? "text-orange-500" :
+            environment === "demo" ? "text-purple-500" :
             "text-muted-foreground"
-          }` : ""}>
-            Version {displayVersion}
+          }`}>
+            {APP_VERSION}-{environment} ({BUILD_DATE})
           </span>
           <span className="text-muted-foreground/30">|</span>
           <span className="font-semibold">Servecta @ {currentYear}</span>
