@@ -10,11 +10,15 @@ import {
   CalendarDays,
   Star,
   LogOut,
+  Store,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/tenants", label: "Restaurants", icon: Store },
+  { href: "/admin/platform-admins", label: "Zugänge", icon: ShieldCheck },
   { href: "/admin/guests", label: "Gäste", icon: Users },
   { href: "/admin/reservations", label: "Reservierungen", icon: CalendarDays },
   { href: "/admin/reviews", label: "Bewertungen", icon: Star },
