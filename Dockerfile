@@ -18,8 +18,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Set build-time environment variables
-ARG NEXT_PUBLIC_APP_VERSION=v0.0.0-00000000-development
+ARG NEXT_PUBLIC_APP_VERSION
+ARG NEXT_PUBLIC_BUILD_DATE
 ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
+ENV NEXT_PUBLIC_BUILD_DATE=$NEXT_PUBLIC_BUILD_DATE
 
 # Build Next.js application
 RUN npm run build
