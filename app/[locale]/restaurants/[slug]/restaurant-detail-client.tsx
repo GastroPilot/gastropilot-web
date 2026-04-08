@@ -237,6 +237,7 @@ export function RestaurantDetailClient({
               height={400}
               className="h-full w-full object-cover"
               priority
+              unoptimized
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">
