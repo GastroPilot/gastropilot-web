@@ -197,10 +197,19 @@ export interface AdminTenantCreate {
   owner_pin: string;
 }
 
+export interface AdminTenantImpersonation {
+  impersonation_token: string;
+  tenant_id: string;
+  tenant_name: string;
+}
+
 export const adminTenantsApi = {
   list: () => adminApi.get<AdminTenant[]>("/admin/tenants"),
 
   get: (id: string) => adminApi.get<AdminTenant>(`/admin/tenants/${id}`),
+
+  impersonate: (id: string) =>
+    adminApi.get<AdminTenantImpersonation>(`/admin/tenants/${id}/impersonate`),
 
   create: (data: AdminTenantCreate) =>
     adminApi.post<{
