@@ -12,6 +12,7 @@ import {
   LogOut,
   Store,
   ShieldCheck,
+  Settings,
   UtensilsCrossed,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/tenants", label: "Restaurants", icon: Store },
+  { href: "/admin/tenant-settings", label: "Restaurant-Einstellungen", icon: Settings },
   { href: "/admin/menu", label: "Menü verwalten", icon: UtensilsCrossed },
   { href: "/admin/platform-admins", label: "Zugänge", icon: ShieldCheck },
   { href: "/admin/guests", label: "Gäste", icon: Users },
