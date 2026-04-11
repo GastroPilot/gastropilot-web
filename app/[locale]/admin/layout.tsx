@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { adminImpersonation } from "@/lib/api/admin";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
+import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +17,8 @@ import {
   ShieldCheck,
   Settings,
   UtensilsCrossed,
+  Undo2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,12 +42,20 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { isAdmin, isLoading, adminUser, logout } = useAdminAuth();
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [impersonatingUserName, setImpersonatingUserName] = useState<string | null>(null);
+  const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
       router.push("/auth/login");
     }
   }, [isLoading, isAdmin, router]);
+
+  useEffect(() => {
+    setIsImpersonating(adminImpersonation.isActive());
+    setImpersonatingUserName(adminImpersonation.getUserName());
+  }, [pathname]);
 
   if (isLoading) {
     return (
@@ -58,6 +70,16 @@ export default function AdminLayout({
   const handleLogout = () => {
     logout();
     router.push("/auth/login");
+  };
+
+  const handleStopImpersonation = () => {
+    setStoppingImpersonation(true);
+    try {
+      adminImpersonation.stop();
+      window.location.href = "/admin/platform-admins";
+    } finally {
+      setStoppingImpersonation(false);
+    }
   };
 
   return (
@@ -127,7 +149,33 @@ export default function AdminLayout({
             </button>
           </nav>
         </header>
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <main className="flex-1 p-4 md:p-8">
+          {isImpersonating ? (
+            <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm">
+                  <p className="font-medium text-amber-200">Impersonation aktiv</p>
+                  <p className="text-amber-100/90">
+                    Aktiver Benutzer: {impersonatingUserName || "Unbekannt"}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleStopImpersonation}
+                  disabled={stoppingImpersonation}
+                >
+                  {stoppingImpersonation ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Undo2 className="mr-2 h-4 w-4" />
+                  )}
+                  Impersonation beenden
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          {children}
+        </main>
       </div>
     </div>
   );

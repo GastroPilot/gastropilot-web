@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { adminImpersonation } from "@/lib/api/admin";
 import { adminAuthApi, type AdminUser } from "@/lib/api/admin-auth";
 
 interface AdminAuthState {
@@ -48,7 +49,15 @@ export const useAdminAuth = create<AdminAuthState>((set) => ({
     set({ isLoading: true });
     try {
       const user = await adminAuthApi.getMe();
-      if (user.role !== "platform_admin") {
+      const isPlatformRole = ["platform_admin", "platform_support", "platform_analyst"].includes(
+        user.role
+      );
+      const canUseAdminUi =
+        user.role === "platform_admin" ||
+        (adminImpersonation.isActive() &&
+          (user.role === "platform_support" || user.role === "platform_analyst"));
+
+      if (!isPlatformRole || !canUseAdminUi) {
         adminAuthApi.logout();
         set({ adminUser: null, isAdmin: false, isLoading: false });
         return;

@@ -203,6 +203,13 @@ export interface AdminTenantImpersonation {
   tenant_name: string;
 }
 
+export interface AdminUserImpersonation {
+  impersonation_token: string;
+  user_id: string;
+  user_name: string;
+  tenant_id: string | null;
+}
+
 export const adminTenantsApi = {
   list: () => adminApi.get<AdminTenant[]>("/admin/tenants"),
 
@@ -239,6 +246,67 @@ export const adminTenantsApi = {
       `/admin/tenants/${id}/suspend`,
       { is_suspended }
     ),
+};
+
+export const adminUsersApi = {
+  impersonate: (id: string) =>
+    adminApi.get<AdminUserImpersonation>(`/admin/users/${id}/impersonate`),
+};
+
+const IMPERSONATION_KEYS = {
+  originalToken: "admin_original_token",
+  userId: "impersonating_user_id",
+  userName: "impersonating_user_name",
+} as const;
+
+export const adminImpersonation = {
+  start(token: string, userId: string, userName: string): void {
+    if (typeof window === "undefined") return;
+    if (!localStorage.getItem(IMPERSONATION_KEYS.originalToken)) {
+      const currentToken = localStorage.getItem("admin_access_token");
+      if (currentToken) {
+        localStorage.setItem(IMPERSONATION_KEYS.originalToken, currentToken);
+      }
+    }
+    localStorage.setItem("admin_access_token", token);
+    localStorage.setItem(IMPERSONATION_KEYS.userId, userId);
+    localStorage.setItem(IMPERSONATION_KEYS.userName, userName);
+  },
+
+  stop(): void {
+    if (typeof window === "undefined") return;
+    const originalToken = localStorage.getItem(IMPERSONATION_KEYS.originalToken);
+    if (originalToken) {
+      localStorage.setItem("admin_access_token", originalToken);
+    } else {
+      localStorage.removeItem("admin_access_token");
+    }
+    localStorage.removeItem(IMPERSONATION_KEYS.originalToken);
+    localStorage.removeItem(IMPERSONATION_KEYS.userId);
+    localStorage.removeItem(IMPERSONATION_KEYS.userName);
+  },
+
+  clear(): void {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(IMPERSONATION_KEYS.originalToken);
+    localStorage.removeItem(IMPERSONATION_KEYS.userId);
+    localStorage.removeItem(IMPERSONATION_KEYS.userName);
+  },
+
+  isActive(): boolean {
+    if (typeof window === "undefined") return false;
+    return Boolean(localStorage.getItem(IMPERSONATION_KEYS.userId));
+  },
+
+  getUserId(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(IMPERSONATION_KEYS.userId);
+  },
+
+  getUserName(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(IMPERSONATION_KEYS.userName);
+  },
 };
 
 // ─── Platform Admin Types ──────────────────────────────────────────────────

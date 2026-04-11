@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { adminPlatformAdminsApi, type AdminPlatformAdmin } from "@/lib/api/admin";
+import {
+  adminImpersonation,
+  adminPlatformAdminsApi,
+  adminUsersApi,
+  type AdminPlatformAdmin,
+} from "@/lib/api/admin";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +23,8 @@ import {
   X,
   Check,
   Ban,
+  Loader2,
+  LogIn,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +33,7 @@ export default function AdminPlatformAdminsPage() {
   const { adminUser } = useAdminAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
 
   const { data: admins, isLoading } = useQuery({
     queryKey: ["admin", "platform-admins"],
@@ -57,6 +65,36 @@ export default function AdminPlatformAdminsPage() {
     platform_admin: "Admin",
     platform_support: "Support",
     platform_analyst: "Analyst",
+  };
+
+  const handleImpersonate = async (admin: AdminPlatformAdmin) => {
+    if (admin.id === adminUser?.id) {
+      toast.error("Sie können sich nicht selbst impersonieren");
+      return;
+    }
+
+    const confirmed = confirm(
+      `Benutzer "${admin.first_name} ${admin.last_name}" wirklich impersonieren?\n\nSie übernehmen danach dessen Sitzung.`
+    );
+    if (!confirmed) return;
+
+    setImpersonatingId(admin.id);
+    try {
+      const response = await adminUsersApi.impersonate(admin.id);
+      adminImpersonation.start(
+        response.impersonation_token,
+        response.user_id,
+        response.user_name
+      );
+      toast.success(`Impersonation gestartet: ${response.user_name}`);
+      window.location.href = "/admin";
+    } catch (error) {
+      console.error("Fehler bei der User-Impersonation:", error);
+      const message =
+        error instanceof Error ? error.message : "Impersonation fehlgeschlagen";
+      toast.error(message);
+      setImpersonatingId(null);
+    }
   };
 
   return (
@@ -172,6 +210,19 @@ export default function AdminPlatformAdminsPage() {
                           </Button>
                           {admin.id !== adminUser?.id && (
                             <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleImpersonate(admin)}
+                                disabled={impersonatingId === admin.id}
+                                title="Impersonieren"
+                              >
+                                {impersonatingId === admin.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <LogIn className="h-4 w-4 text-primary" />
+                                )}
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"

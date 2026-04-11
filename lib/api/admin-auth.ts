@@ -1,5 +1,6 @@
 import { adminApi } from "./client";
 import { getApiBaseUrl, API_PREFIX, buildApiUrl } from "./config";
+import { adminImpersonation } from "./admin";
 
 export interface AdminUser {
   id: string;
@@ -66,6 +67,7 @@ export const adminAuthApi = {
 
   logout: () => {
     if (typeof window !== "undefined") {
+      adminImpersonation.clear();
       localStorage.removeItem("admin_access_token");
     }
   },
