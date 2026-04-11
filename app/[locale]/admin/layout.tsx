@@ -47,6 +47,11 @@ export default function AdminLayout({
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatingUserName, setImpersonatingUserName] = useState<string | null>(null);
   const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
+  const normalizedPathname = pathname.replace(/^\/(de|en)(?=\/|$)/, "") || "/";
+
+  const isNavItemActive = (href: string) =>
+    normalizedPathname === href ||
+    (href !== "/admin" && normalizedPathname.startsWith(href));
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -93,9 +98,7 @@ export default function AdminLayout({
         </div>
         <nav className="flex flex-col gap-1 p-4">
           {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/admin" && pathname.startsWith(item.href));
+            const isActive = isNavItemActive(item.href);
             return (
               <Link
                 key={item.href}
@@ -138,7 +141,7 @@ export default function AdminLayout({
                 href={item.href}
                 className={cn(
                   "rounded-md p-2",
-                  pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
+                  isNavItemActive(item.href)
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground"
                 )}
