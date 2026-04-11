@@ -15,12 +15,19 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { adminTenantsApi, type AdminTenant } from "@/lib/api/admin";
+import type { AdminTenant } from "@/lib/api/admin";
 import {
   menuManagementApi,
   type MenuCategory,
   type MenuItem,
 } from "@/lib/api/menu";
+import {
+  getRestaurantAccessToken,
+  listAccessibleRestaurants,
+  withOptionalAccessToken,
+} from "@/lib/admin-tenant-context";
+import { isManagerOrAboveRole } from "@/lib/admin-access";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -83,6 +90,8 @@ function formatCurrency(amount: number) {
 }
 
 export default function AdminMenuPage() {
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
+  const canManageMenu = isManagerOrAboveRole(adminRole);
   const [restaurants, setRestaurants] = useState<AdminTenant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [categories, setCategories] = useState<MenuCategory[]>([]);
@@ -161,9 +170,16 @@ export default function AdminMenuPage() {
   }, [categories, categoryItemCount]);
 
   const loadRestaurants = useCallback(async () => {
+    if (!adminRole) {
+      setRestaurants([]);
+      setSelectedRestaurantId("");
+      setLoadingRestaurants(false);
+      return;
+    }
+
     setLoadingRestaurants(true);
     try {
-      const list = await adminTenantsApi.list();
+      const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((currentId) => {
         if (currentId && list.some((restaurant) => restaurant.id === currentId)) {
@@ -177,12 +193,11 @@ export default function AdminMenuPage() {
     } finally {
       setLoadingRestaurants(false);
     }
-  }, []);
+  }, [adminRole]);
 
   const getTenantAccessToken = useCallback(async (restaurantId: string) => {
-    const session = await adminTenantsApi.impersonate(restaurantId);
-    return session.impersonation_token;
-  }, []);
+    return getRestaurantAccessToken(adminRole, restaurantId);
+  }, [adminRole]);
 
   const loadMenu = useCallback(async (restaurantId: string) => {
     if (!restaurantId) {
@@ -194,9 +209,10 @@ export default function AdminMenuPage() {
     setLoadingMenu(true);
     try {
       const accessToken = await getTenantAccessToken(restaurantId);
+      const requestOptions = withOptionalAccessToken(accessToken);
       const [allCategories, allItems] = await Promise.all([
-        menuManagementApi.listCategories({ accessToken }),
-        menuManagementApi.listItems({}, { accessToken }),
+        menuManagementApi.listCategories(requestOptions),
+        menuManagementApi.listItems({}, requestOptions),
       ]);
 
       setCategories(sortCategories(allCategories));
@@ -226,6 +242,10 @@ export default function AdminMenuPage() {
   }, [categories, selectedCategoryId]);
 
   const openCategoryDialog = (category: MenuCategory | null = null) => {
+    if (!canManageMenu) {
+      toast.error("Keine Berechtigung zum Bearbeiten des Menüs");
+      return;
+    }
     setEditingCategory(category);
     if (category) {
       setCategoryName(category.name);
@@ -242,6 +262,10 @@ export default function AdminMenuPage() {
   };
 
   const openItemDialog = (item: MenuItem | null = null) => {
+    if (!canManageMenu) {
+      toast.error("Keine Berechtigung zum Bearbeiten des Menüs");
+      return;
+    }
     setEditingItem(item);
     if (item) {
       setItemName(item.name);
@@ -264,6 +288,10 @@ export default function AdminMenuPage() {
   };
 
   const handleSaveCategory = async () => {
+    if (!canManageMenu) {
+      toast.error("Keine Berechtigung zum Speichern");
+      return;
+    }
     if (!selectedRestaurantId) {
       toast.error("Bitte wählen Sie zuerst ein Restaurant");
       return;
@@ -277,13 +305,14 @@ export default function AdminMenuPage() {
     setSubmitting(true);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
+      const requestOptions = withOptionalAccessToken(accessToken);
       if (editingCategory) {
         await menuManagementApi.updateCategory(editingCategory.id, {
           name: categoryName.trim(),
           description: categoryDescription.trim() || null,
           sort_order: categorySortOrder,
           is_active: categoryIsActive,
-        }, { accessToken });
+        }, requestOptions);
         toast.success("Kategorie aktualisiert");
       } else {
         await menuManagementApi.createCategory({
@@ -292,7 +321,7 @@ export default function AdminMenuPage() {
           description: categoryDescription.trim() || null,
           sort_order: categorySortOrder,
           is_active: categoryIsActive,
-        }, { accessToken });
+        }, requestOptions);
         toast.success("Kategorie erstellt");
       }
       setCategoryDialogOpen(false);
@@ -306,6 +335,10 @@ export default function AdminMenuPage() {
   };
 
   const handleDeleteCategory = async (category: MenuCategory) => {
+    if (!canManageMenu) {
+      toast.error("Keine Berechtigung zum Löschen");
+      return;
+    }
     const hasItems = items.some((item) => item.category_id === category.id);
     if (hasItems) {
       toast.error("Kategorie enthält noch Artikel und kann nicht gelöscht werden");
@@ -319,7 +352,10 @@ export default function AdminMenuPage() {
     setSubmitting(true);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
-      await menuManagementApi.deleteCategory(category.id, { accessToken });
+      await menuManagementApi.deleteCategory(
+        category.id,
+        withOptionalAccessToken(accessToken)
+      );
       toast.success("Kategorie gelöscht");
       setCategoryDialogOpen(false);
       await loadMenu(selectedRestaurantId);
@@ -332,6 +368,10 @@ export default function AdminMenuPage() {
   };
 
   const handleSaveItem = async () => {
+    if (!canManageMenu) {
+      toast.error("Keine Berechtigung zum Speichern");
+      return;
+    }
     if (!selectedRestaurantId) {
       toast.error("Bitte wählen Sie zuerst ein Restaurant");
       return;
@@ -345,6 +385,7 @@ export default function AdminMenuPage() {
     setSubmitting(true);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
+      const requestOptions = withOptionalAccessToken(accessToken);
       if (editingItem) {
         await menuManagementApi.updateItem(editingItem.id, {
           name: itemName.trim(),
@@ -354,7 +395,7 @@ export default function AdminMenuPage() {
           is_available: itemIsAvailable,
           sort_order: itemSortOrder,
           allergens: itemAllergens,
-        }, { accessToken });
+        }, requestOptions);
         toast.success("Artikel aktualisiert");
       } else {
         await menuManagementApi.createItem({
@@ -366,7 +407,7 @@ export default function AdminMenuPage() {
           is_available: itemIsAvailable,
           sort_order: itemSortOrder,
           allergens: itemAllergens,
-        }, { accessToken });
+        }, requestOptions);
         toast.success("Artikel erstellt");
       }
       setItemDialogOpen(false);
@@ -380,6 +421,10 @@ export default function AdminMenuPage() {
   };
 
   const handleDeleteItem = async (item: MenuItem) => {
+    if (!canManageMenu) {
+      toast.error("Keine Berechtigung zum Löschen");
+      return;
+    }
     if (!confirm(`Artikel "${item.name}" wirklich löschen?`)) {
       return;
     }
@@ -387,7 +432,7 @@ export default function AdminMenuPage() {
     setSubmitting(true);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
-      await menuManagementApi.deleteItem(item.id, { accessToken });
+      await menuManagementApi.deleteItem(item.id, withOptionalAccessToken(accessToken));
       toast.success("Artikel gelöscht");
       setItemDialogOpen(false);
       await loadMenu(selectedRestaurantId);
@@ -433,12 +478,15 @@ export default function AdminMenuPage() {
                 <Button
                   variant="outline"
                   onClick={() => openCategoryDialog(null)}
-                  disabled={!selectedRestaurantId || loadingMenu}
+                  disabled={!selectedRestaurantId || loadingMenu || !canManageMenu}
                 >
                   <Tag className="mr-2 h-4 w-4" />
                   Kategorie hinzufügen
                 </Button>
-                <Button onClick={() => openItemDialog(null)} disabled={!selectedRestaurantId || loadingMenu}>
+                <Button
+                  onClick={() => openItemDialog(null)}
+                  disabled={!selectedRestaurantId || loadingMenu || !canManageMenu}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Artikel hinzufügen
                 </Button>
@@ -519,6 +567,12 @@ export default function AdminMenuPage() {
                 </button>
               ))}
             </div>
+            {!canManageMenu ? (
+              <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-200">
+                Diese Rolle hat Lesezugriff auf das Menü. Änderungen sind nur für Manager, Owner
+                oder Platform-Admin erlaubt.
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -562,8 +616,10 @@ export default function AdminMenuPage() {
                     <p className="font-medium text-foreground">Keine passenden Artikel gefunden</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {searchQuery || selectedCategoryId
-                        ? "Filter anpassen oder Artikel neu anlegen."
-                        : "Legen Sie den ersten Artikel für dieses Restaurant an."}
+                        ? "Filter anpassen."
+                        : canManageMenu
+                          ? "Legen Sie den ersten Artikel für dieses Restaurant an."
+                          : "Für dieses Restaurant sind noch keine Artikel vorhanden."}
                     </p>
                   </div>
                 ) : (
@@ -575,6 +631,7 @@ export default function AdminMenuPage() {
                           key={item.id}
                           type="button"
                           onClick={() => openItemDialog(item)}
+                          disabled={!canManageMenu}
                           className="group rounded-xl border border-border/80 bg-background/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -662,6 +719,7 @@ export default function AdminMenuPage() {
                           key={category.id}
                           type="button"
                           onClick={() => openCategoryDialog(category)}
+                          disabled={!canManageMenu}
                           className="relative overflow-hidden flex w-full items-start justify-between rounded-xl border border-border/80 bg-background/70 px-3 py-2.5 text-left transition-colors hover:border-primary/60"
                         >
                           <span
@@ -697,7 +755,10 @@ export default function AdminMenuPage() {
         ) : null}
       </div>
 
-      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+      <Dialog
+        open={categoryDialogOpen}
+        onOpenChange={(nextOpen) => setCategoryDialogOpen(nextOpen && canManageMenu)}
+      >
         <DialogContent
           className="max-w-xl border-border/70 bg-card/95 backdrop-blur-xl"
           onClose={() => setCategoryDialogOpen(false)}
@@ -785,7 +846,7 @@ export default function AdminMenuPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
+      <Dialog open={itemDialogOpen} onOpenChange={(nextOpen) => setItemDialogOpen(nextOpen && canManageMenu)}>
         <DialogContent
           className="max-w-2xl border-border/70 bg-card/95 backdrop-blur-xl"
           onClose={() => setItemDialogOpen(false)}

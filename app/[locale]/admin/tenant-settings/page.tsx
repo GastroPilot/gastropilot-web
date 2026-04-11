@@ -39,6 +39,12 @@ import {
   type AdminRestaurant,
 } from "@/lib/api/admin-restaurants";
 import {
+  getRestaurantAccessToken,
+  listAccessibleRestaurants,
+} from "@/lib/admin-tenant-context";
+import { canEditTenantSlug } from "@/lib/admin-access";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
+import {
   DEFAULT_TENANT_SETTINGS,
   tenantSettingsApi,
   type DayHours,
@@ -174,6 +180,7 @@ function Section({
 }
 
 export default function TenantSettingsPage() {
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
   const [restaurants, setRestaurants] = useState<AdminTenant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [loadingRestaurants, setLoadingRestaurants] = useState(true);
@@ -217,11 +224,19 @@ export default function TenantSettingsPage() {
     () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
     [restaurants, selectedRestaurantId]
   );
+  const canUpdateSlug = canEditTenantSlug(adminRole);
 
   const loadRestaurantList = useCallback(async () => {
+    if (!adminRole) {
+      setRestaurants([]);
+      setSelectedRestaurantId("");
+      setLoadingRestaurants(false);
+      return;
+    }
+
     setLoadingRestaurants(true);
     try {
-      const list = await adminTenantsApi.list();
+      const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((current) => {
         if (current && list.some((restaurant) => restaurant.id === current)) {
@@ -235,7 +250,7 @@ export default function TenantSettingsPage() {
     } finally {
       setLoadingRestaurants(false);
     }
-  }, []);
+  }, [adminRole]);
 
   const hydrateFromData = useCallback(
     (restaurant: AdminRestaurant, settings: TenantSettings) => {
@@ -318,9 +333,8 @@ export default function TenantSettingsPage() {
   );
 
   const getTenantAccessToken = useCallback(async (restaurantId: string) => {
-    const session = await adminTenantsApi.impersonate(restaurantId);
-    return session.impersonation_token;
-  }, []);
+    return getRestaurantAccessToken(adminRole, restaurantId);
+  }, [adminRole]);
 
   useEffect(() => {
     loadRestaurantList();
@@ -426,8 +440,7 @@ export default function TenantSettingsPage() {
     if (!selectedRestaurantId) return;
     setSavingBooking(true);
     try {
-      await Promise.all([
-        adminTenantsApi.update(selectedRestaurantId, { slug: slug.trim() || undefined }),
+      const updates: Promise<unknown>[] = [
         tenantSettingsApi.updateSettings(selectedRestaurantId, {
           public_booking_enabled: bookingEnabled,
           booking_lead_time_hours: Math.max(0, parseInt(leadTime, 10) || 0),
@@ -437,7 +450,17 @@ export default function TenantSettingsPage() {
             parseInt(defaultDuration, 10) || 120
           ),
         }),
-      ]);
+      ];
+
+      if (canUpdateSlug) {
+        updates.push(
+          adminTenantsApi.update(selectedRestaurantId, { slug: slug.trim() || undefined })
+        );
+      } else if (slug.trim() !== (selectedRestaurant?.slug ?? "")) {
+        toast.info("Der URL-Slug kann nur von Platform-Admins geändert werden");
+      }
+
+      await Promise.all(updates);
       toast.success("Buchungseinstellungen gespeichert");
       await loadRestaurantList();
     } catch (error) {
@@ -814,12 +837,23 @@ export default function TenantSettingsPage() {
                         setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
                       }
                       placeholder="mein-restaurant"
+                      disabled={!canUpdateSlug}
                     />
                   </div>
-                  <Button type="button" variant="outline" onClick={generateSlug}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={generateSlug}
+                    disabled={!canUpdateSlug}
+                  >
                     Generieren
                   </Button>
                 </div>
+                {!canUpdateSlug ? (
+                  <p className="text-xs text-muted-foreground">
+                    Der URL-Slug kann nur durch Platform-Admins geändert werden.
+                  </p>
+                ) : null}
                 {slug ? (
                   <p className="text-xs text-muted-foreground">
                     <ExternalLink className="mr-1 inline h-3 w-3" />

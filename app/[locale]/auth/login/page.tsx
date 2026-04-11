@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
+import { getDefaultAdminRoute } from "@/lib/admin-access";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,10 +35,11 @@ export default function LoginPage() {
       // Guest-Login fehlgeschlagen, versuche Admin-Login
     }
 
-    // 2. Versuche Admin-Login (Staff mit role=platform_admin)
+    // 2. Versuche Web-Admin-Login (rollenbasiert)
     try {
       await adminLogin({ email, password });
-      router.push("/admin");
+      const target = getDefaultAdminRoute(useAdminAuth.getState().adminUser?.role) ?? "/admin";
+      router.push(target);
       return;
     } catch {
       // Beide fehlgeschlagen

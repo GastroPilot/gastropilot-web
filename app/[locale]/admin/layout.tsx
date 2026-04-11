@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { adminImpersonation } from "@/lib/api/admin";
+import { canAccessAdminRoute, getDefaultAdminRoute } from "@/lib/admin-access";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { useDashboardUrl } from "@/lib/dashboard-url";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,15 @@ export default function AdminLayout({
   const [impersonatingUserName, setImpersonatingUserName] = useState<string | null>(null);
   const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
   const normalizedPathname = pathname.replace(/^\/(de|en)(?=\/|$)/, "") || "/";
+  const currentRole = adminUser?.role ?? null;
+  const defaultRoute = getDefaultAdminRoute(currentRole) ?? "/auth/login";
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.filter((item) =>
+        canAccessAdminRoute(item.href, currentRole)
+      ),
+    [currentRole]
+  );
 
   const isNavItemActive = (href: string) =>
     normalizedPathname === href ||
@@ -63,6 +73,13 @@ export default function AdminLayout({
       router.push("/auth/login");
     }
   }, [isLoading, isAdmin, router]);
+
+  useEffect(() => {
+    if (isLoading || !isAdmin) return;
+    if (!canAccessAdminRoute(normalizedPathname, currentRole)) {
+      router.replace(defaultRoute);
+    }
+  }, [currentRole, defaultRoute, isAdmin, isLoading, normalizedPathname, router]);
 
   useEffect(() => {
     setIsImpersonating(adminImpersonation.isActive());
@@ -102,7 +119,7 @@ export default function AdminLayout({
           <span className="text-lg font-bold text-primary">Admin</span>
         </div>
         <nav className="flex flex-col gap-1 p-4">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = isNavItemActive(item.href);
             return (
               <Link
@@ -159,7 +176,7 @@ export default function AdminLayout({
             >
               <ExternalLink className="h-5 w-5" />
             </a>
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

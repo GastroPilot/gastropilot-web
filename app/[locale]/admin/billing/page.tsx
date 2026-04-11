@@ -10,12 +10,18 @@ import {
   Store,
 } from "lucide-react";
 import { toast } from "sonner";
-import { adminTenantsApi, type AdminTenant } from "@/lib/api/admin";
+import type { AdminTenant } from "@/lib/api/admin";
 import {
   billingApi,
   type Subscription,
   type SubscriptionPlan,
 } from "@/lib/api/billing";
+import {
+  getRestaurantAccessToken,
+  listAccessibleRestaurants,
+  withOptionalAccessToken,
+} from "@/lib/admin-tenant-context";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +37,7 @@ const tierOrder = ["free", "starter", "professional", "enterprise"];
 
 export default function AdminBillingPage() {
   const searchParams = useSearchParams();
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
   const [restaurants, setRestaurants] = useState<AdminTenant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -47,14 +54,20 @@ export default function AdminBillingPage() {
   );
 
   const getTenantAccessToken = useCallback(async (restaurantId: string) => {
-    const session = await adminTenantsApi.impersonate(restaurantId);
-    return session.impersonation_token;
-  }, []);
+    return getRestaurantAccessToken(adminRole, restaurantId);
+  }, [adminRole]);
 
   const loadRestaurants = useCallback(async () => {
+    if (!adminRole) {
+      setRestaurants([]);
+      setSelectedRestaurantId("");
+      setLoadingRestaurants(false);
+      return;
+    }
+
     setLoadingRestaurants(true);
     try {
-      const list = await adminTenantsApi.list();
+      const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((currentId) => {
         if (currentId && list.some((restaurant) => restaurant.id === currentId)) {
@@ -68,7 +81,7 @@ export default function AdminBillingPage() {
     } finally {
       setLoadingRestaurants(false);
     }
-  }, []);
+  }, [adminRole]);
 
   const loadBilling = useCallback(
     async (restaurantId: string) => {
@@ -81,9 +94,10 @@ export default function AdminBillingPage() {
       setLoadingBilling(true);
       try {
         const accessToken = await getTenantAccessToken(restaurantId);
+        const requestOptions = withOptionalAccessToken(accessToken);
         const [plansData, subscriptionData] = await Promise.all([
-          billingApi.getPlans({ accessToken }),
-          billingApi.getSubscription({ accessToken }),
+          billingApi.getPlans(requestOptions),
+          billingApi.getSubscription(requestOptions),
         ]);
         setPlans(plansData);
         setSubscription(subscriptionData);
@@ -130,7 +144,7 @@ export default function AdminBillingPage() {
           success_url: `${base}/admin/billing?success=true`,
           cancel_url: `${base}/admin/billing?canceled=true`,
         },
-        { accessToken }
+        withOptionalAccessToken(accessToken)
       );
       window.location.href = checkout_url;
     } catch (error) {
@@ -145,7 +159,7 @@ export default function AdminBillingPage() {
     setPortalLoading(true);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
-      const { url } = await billingApi.openPortal({ accessToken });
+      const { url } = await billingApi.openPortal(withOptionalAccessToken(accessToken));
       window.location.href = url;
     } catch (error) {
       console.error("Fehler beim Öffnen des Billing-Portals:", error);

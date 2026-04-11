@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { adminTenantsApi, type AdminTenant } from "@/lib/api/admin";
+import type { AdminTenant } from "@/lib/api/admin";
 import {
   operatorsApi,
   type OperatorCreateInput,
@@ -28,6 +28,13 @@ import {
   type OperatorUpdateInput,
   type OperatorUser,
 } from "@/lib/api/operators";
+import {
+  getRestaurantAccessToken,
+  listAccessibleRestaurants,
+  withOptionalAccessToken,
+} from "@/lib/admin-tenant-context";
+import { canManageOperatorAccounts } from "@/lib/admin-access";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,16 +67,26 @@ const ROLE_ORDER: OperatorRole[] = [
   "guest",
 ];
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function getInitialFormData(): OperatorFormData {
   return {
     operator_number: "",
     pin: "",
+    email: "",
+    password: "",
     nfc_tag_id: "",
     first_name: "",
     last_name: "",
     role: "staff",
     is_active: true,
+    auth_method: "pin",
   };
+}
+
+function resolveAuthMethod(role: OperatorRole): "pin" | "password" {
+  if (role === "owner") return "password";
+  return "pin";
 }
 
 function roleLabel(role: string): string {
@@ -126,6 +143,7 @@ function formatLastLogin(value?: string | null): string {
 }
 
 export default function AdminOperatorsPage() {
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
   const [restaurants, setRestaurants] = useState<AdminTenant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [loadingRestaurants, setLoadingRestaurants] = useState(true);
@@ -148,11 +166,19 @@ export default function AdminOperatorsPage() {
     [restaurants, selectedRestaurantId]
   );
 
+  const canManageOperators = useMemo(
+    () => canManageOperatorAccounts(currentUser?.role ?? adminRole),
+    [adminRole, currentUser?.role]
+  );
+
   const assignableRoles = useMemo(() => {
     if (currentUser?.role === "platform_admin") {
-      return ["platform_admin", "owner", "manager", "staff"] as OperatorRole[];
+      return ["platform_admin", "owner", "manager", "staff", "kitchen", "guest"] as OperatorRole[];
     }
-    return ["owner", "manager", "staff"] as OperatorRole[];
+    if (currentUser?.role === "owner") {
+      return ["owner", "manager", "staff", "kitchen", "guest"] as OperatorRole[];
+    }
+    return [] as OperatorRole[];
   }, [currentUser?.role]);
 
   const formRoleOptions = useMemo(() => {
@@ -182,15 +208,21 @@ export default function AdminOperatorsPage() {
     });
   }, [operators, searchQuery, roleFilter]);
 
-  const getTenantAccessToken = useCallback(async (restaurantId: string): Promise<string> => {
-    const session = await adminTenantsApi.impersonate(restaurantId);
-    return session.impersonation_token;
-  }, []);
+  const getTenantAccessToken = useCallback(async (restaurantId: string) => {
+    return getRestaurantAccessToken(adminRole, restaurantId);
+  }, [adminRole]);
 
   const loadRestaurants = useCallback(async () => {
+    if (!adminRole) {
+      setRestaurants([]);
+      setSelectedRestaurantId("");
+      setLoadingRestaurants(false);
+      return;
+    }
+
     setLoadingRestaurants(true);
     try {
-      const list = await adminTenantsApi.list();
+      const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((current) => {
         if (current && list.some((restaurant) => restaurant.id === current)) {
@@ -204,7 +236,7 @@ export default function AdminOperatorsPage() {
     } finally {
       setLoadingRestaurants(false);
     }
-  }, []);
+  }, [adminRole]);
 
   const loadOperators = useCallback(
     async (restaurantId: string) => {
@@ -217,9 +249,10 @@ export default function AdminOperatorsPage() {
       setLoadingOperators(true);
       try {
         const accessToken = await getTenantAccessToken(restaurantId);
+        const requestOptions = withOptionalAccessToken(accessToken);
         const [list, me] = await Promise.all([
-          operatorsApi.list({ accessToken }),
-          operatorsApi.getCurrentUser({ accessToken }),
+          operatorsApi.list(requestOptions),
+          operatorsApi.getCurrentUser(requestOptions),
         ]);
         setOperators(list);
         setCurrentUser(me);
@@ -257,6 +290,10 @@ export default function AdminOperatorsPage() {
   };
 
   const handleCreate = () => {
+    if (!canManageOperators) {
+      toast.error("Keine Berechtigung zum Anlegen von Bedienern");
+      return;
+    }
     setEditingOperator(null);
     setFormData(getInitialFormData());
     setError("");
@@ -264,18 +301,39 @@ export default function AdminOperatorsPage() {
   };
 
   const handleEdit = (operator: OperatorUser) => {
+    if (!canManageOperators) {
+      toast.error("Keine Berechtigung zum Bearbeiten von Bedienern");
+      return;
+    }
     setEditingOperator(operator);
+    const nextRole = toOperatorRole(operator.role);
     setFormData({
       operator_number: operator.operator_number ?? "",
       pin: "",
+      email: nextRole === "owner" ? (operator.email ?? "") : "",
+      password: "",
       nfc_tag_id: operator.nfc_tag_id ?? "",
       first_name: operator.first_name,
       last_name: operator.last_name,
-      role: toOperatorRole(operator.role),
+      role: nextRole,
       is_active: operator.is_active,
+      auth_method: resolveAuthMethod(nextRole),
     });
     setError("");
     setDialogOpen(true);
+  };
+
+  const handleRoleChange = (value: string) => {
+    setFormData((current) => {
+      const nextRole = toOperatorRole(value);
+      return {
+        ...current,
+        role: nextRole,
+        email: nextRole === "owner" ? current.email : "",
+        password: nextRole === "owner" ? current.password : "",
+        auth_method: resolveAuthMethod(nextRole),
+      };
+    });
   };
 
   const handleOperatorNumberChange = (value: string) => {
@@ -293,38 +351,11 @@ export default function AdminOperatorsPage() {
   };
 
   const validateForm = (): boolean => {
-    if (editingOperator) {
-      if (formData.operator_number && formData.operator_number.length !== 4) {
-        setError("Bedienernummer muss 4 Ziffern lang sein");
-        return false;
-      }
-      if (formData.pin && (formData.pin.length < 6 || formData.pin.length > 8)) {
-        setError("PIN muss 6-8 Ziffern lang sein");
-        return false;
-      }
-      if (formData.first_name.trim().length < 2) {
-        setError("Vorname muss mindestens 2 Zeichen lang sein");
-        return false;
-      }
-      if (formData.last_name.trim().length < 2) {
-        setError("Nachname muss mindestens 2 Zeichen lang sein");
-        return false;
-      }
-      return true;
-    }
+    const normalizedEmail = formData.email?.trim().toLowerCase() ?? "";
+    const effectiveEmail = normalizedEmail || (editingOperator?.email ?? "").trim().toLowerCase();
+    const effectiveAuthMethod = resolveAuthMethod(formData.role);
+    const passwordRequired = formData.role === "owner";
 
-    if (!formData.operator_number || formData.operator_number.length !== 4) {
-      setError("Bedienernummer muss 4 Ziffern lang sein");
-      return false;
-    }
-    if (!formData.pin || formData.pin.length < 6 || formData.pin.length > 8) {
-      setError("PIN muss 6-8 Ziffern lang sein");
-      return false;
-    }
-    if (formData.operator_number === "0000" || formData.operator_number === "0001") {
-      setError("Bedienernummer ist reserviert");
-      return false;
-    }
     if (formData.first_name.trim().length < 2) {
       setError("Vorname muss mindestens 2 Zeichen lang sein");
       return false;
@@ -334,12 +365,71 @@ export default function AdminOperatorsPage() {
       return false;
     }
 
+    const effectiveOperatorNumber =
+      formData.operator_number?.trim() || editingOperator?.operator_number || "";
+    if (!effectiveOperatorNumber || effectiveOperatorNumber.length !== 4) {
+      setError("Bedienernummer muss 4 Ziffern lang sein");
+      return false;
+    }
+
+    if (!editingOperator) {
+      if (!formData.pin || formData.pin.length < 6 || formData.pin.length > 8) {
+        setError("PIN muss 6-8 Ziffern lang sein");
+        return false;
+      }
+    } else if (formData.pin && (formData.pin.length < 6 || formData.pin.length > 8)) {
+      setError("PIN muss 6-8 Ziffern lang sein");
+      return false;
+    }
+    if (!editingOperator && (effectiveOperatorNumber === "0000" || effectiveOperatorNumber === "0001")) {
+      setError("Bedienernummer ist reserviert");
+      return false;
+    }
+
+    if (normalizedEmail && !EMAIL_REGEX.test(normalizedEmail)) {
+      setError("E-Mail ist ungültig");
+      return false;
+    }
+
+    if (!passwordRequired && (normalizedEmail || formData.password)) {
+      setError("Nur Inhaber dürfen E-Mail/Passwort nutzen");
+      return false;
+    }
+
+    if (passwordRequired && !effectiveEmail) {
+      setError("Für E-Mail/Passwort-Login ist eine E-Mail erforderlich");
+      return false;
+    }
+
+    if (passwordRequired) {
+      const requiresFreshPassword =
+        !editingOperator ||
+        (effectiveAuthMethod === "password" && editingOperator.auth_method !== "password");
+      if (requiresFreshPassword) {
+        if (!formData.password || formData.password.length < 8) {
+          setError("Passwort muss mindestens 8 Zeichen lang sein");
+          return false;
+        }
+      } else if (formData.password && formData.password.length < 8) {
+        setError("Passwort muss mindestens 8 Zeichen lang sein");
+        return false;
+      }
+    } else if (formData.password && formData.password.length < 8) {
+      setError("Passwort muss mindestens 8 Zeichen lang sein");
+      return false;
+    }
+
     return true;
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+
+    if (!canManageOperators) {
+      setError("Keine Berechtigung zum Speichern von Bedienern");
+      return;
+    }
 
     if (!selectedRestaurantId) {
       setError("Bitte zuerst ein Restaurant auswählen");
@@ -353,27 +443,40 @@ export default function AdminOperatorsPage() {
     setSubmitting(true);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
+      const requestOptions = withOptionalAccessToken(accessToken);
+      const normalizedEmail = formData.email?.trim().toLowerCase() || undefined;
+      const authMethod = resolveAuthMethod(formData.role);
+      const pinEnabled = true;
+      const passwordEnabled = formData.role === "owner";
+
       if (editingOperator) {
         const payload: OperatorUpdateInput = {
           operator_number: formData.operator_number || undefined,
-          pin: formData.pin || undefined,
+          pin: pinEnabled ? formData.pin || undefined : undefined,
+          email: passwordEnabled ? normalizedEmail : undefined,
+          password: passwordEnabled ? formData.password || undefined : undefined,
+          auth_method: authMethod,
           nfc_tag_id: formData.nfc_tag_id?.trim().toUpperCase() || null,
           first_name: formData.first_name.trim(),
           last_name: formData.last_name.trim(),
           role: formData.role,
           is_active: formData.is_active,
         };
-        await operatorsApi.update(editingOperator.id, payload, { accessToken });
+        await operatorsApi.update(editingOperator.id, payload, requestOptions);
         toast.success("Bediener aktualisiert");
       } else {
-        const { is_active: _formIsActive, ...createCandidate } = formData;
         const payload: OperatorCreateInput = {
-          ...createCandidate,
+          operator_number: pinEnabled ? formData.operator_number || undefined : undefined,
+          pin: pinEnabled ? formData.pin || undefined : undefined,
+          email: passwordEnabled ? normalizedEmail : undefined,
+          password: passwordEnabled ? formData.password || undefined : undefined,
+          auth_method: authMethod,
           first_name: formData.first_name.trim(),
           last_name: formData.last_name.trim(),
+          role: formData.role,
           nfc_tag_id: formData.nfc_tag_id?.trim().toUpperCase() || null,
         };
-        await operatorsApi.create(payload, { accessToken });
+        await operatorsApi.create(payload, requestOptions);
         toast.success("Bediener angelegt");
       }
 
@@ -393,6 +496,10 @@ export default function AdminOperatorsPage() {
   };
 
   const handleDelete = async (operator: OperatorUser) => {
+    if (!canManageOperators) {
+      toast.error("Keine Berechtigung zum Löschen von Bedienern");
+      return;
+    }
     if (!selectedRestaurantId) return;
     const confirmed = window.confirm(
       `Bediener ${operator.first_name} ${operator.last_name} (${operator.operator_number ?? "—"}) wirklich löschen?`
@@ -402,7 +509,7 @@ export default function AdminOperatorsPage() {
     setSubmitting(true);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
-      await operatorsApi.remove(operator.id, { accessToken });
+      await operatorsApi.remove(operator.id, withOptionalAccessToken(accessToken));
       toast.success("Bediener gelöscht");
       await loadOperators(selectedRestaurantId);
     } catch (deleteError) {
@@ -437,7 +544,10 @@ export default function AdminOperatorsPage() {
                 </div>
               </div>
 
-              <Button onClick={handleCreate} disabled={!selectedRestaurantId || loadingOperators}>
+              <Button
+                onClick={handleCreate}
+                disabled={!selectedRestaurantId || loadingOperators || !canManageOperators}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Bediener anlegen
               </Button>
@@ -626,26 +736,30 @@ export default function AdminOperatorsPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEdit(operator)}
-                                disabled={submitting}
-                              >
-                                <Edit className="mr-1.5 h-4 w-4" />
-                                Bearbeiten
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDelete(operator)}
-                                disabled={submitting}
-                              >
-                                <Trash2 className="mr-1.5 h-4 w-4" />
-                                Löschen
-                              </Button>
-                            </div>
+                            {canManageOperators ? (
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEdit(operator)}
+                                  disabled={submitting}
+                                >
+                                  <Edit className="mr-1.5 h-4 w-4" />
+                                  Bearbeiten
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDelete(operator)}
+                                  disabled={submitting}
+                                >
+                                  <Trash2 className="mr-1.5 h-4 w-4" />
+                                  Löschen
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Nur Leserechte</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -694,45 +808,6 @@ export default function AdminOperatorsPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Bedienernummer (4 Ziffern)</label>
-                  <div className="relative">
-                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={formData.operator_number ?? ""}
-                      onChange={(event) => handleOperatorNumberChange(event.target.value)}
-                      inputMode="numeric"
-                      pattern="[0-9]{4}"
-                      maxLength={4}
-                      required={!editingOperator}
-                      disabled={Boolean(editingOperator) || submitting}
-                      className="pl-9 text-center font-mono tracking-[0.2em]"
-                      placeholder="0000"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">PIN (6-8 Ziffern)</label>
-                  <div className="relative">
-                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={formData.pin ?? ""}
-                      onChange={(event) => handlePinChange(event.target.value)}
-                      type="password"
-                      inputMode="numeric"
-                      pattern="[0-9]{6,8}"
-                      maxLength={8}
-                      required={!editingOperator}
-                      disabled={submitting}
-                      className="pl-9 text-center font-mono tracking-[0.2em]"
-                      placeholder={editingOperator ? "Leer lassen, um nicht zu ändern" : "••••••"}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5">
                   <label className="text-sm font-medium text-foreground">Vorname</label>
                   <Input
                     value={formData.first_name}
@@ -767,10 +842,8 @@ export default function AdminOperatorsPage() {
                   <label className="text-sm font-medium text-foreground">Rolle</label>
                   <Select
                     value={formData.role}
-                    onValueChange={(value) =>
-                      setFormData((current) => ({ ...current, role: toOperatorRole(value) }))
-                    }
-                    disabled={submitting}
+                    onValueChange={handleRoleChange}
+                    disabled={submitting || !canManageOperators}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Rolle wählen" />
@@ -786,22 +859,127 @@ export default function AdminOperatorsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">NFC Tag-ID (optional)</label>
-                  <Input
-                    value={formData.nfc_tag_id ?? ""}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        nfc_tag_id: event.target.value.toUpperCase(),
-                      }))
-                    }
-                    maxLength={64}
-                    disabled={submitting}
-                    className="font-mono"
-                    placeholder="04A1B2C3D4E5F6"
-                  />
+                  <label className="text-sm font-medium text-foreground">Login-Regel</label>
+                  <p className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                    {formData.role === "owner"
+                      ? "Inhaber: PIN (Dashboard/App) + E-Mail/Passwort (Web)"
+                      : "Diese Rolle nutzt nur PIN (kein Web-Login)."}
+                  </p>
                 </div>
               </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">
+                    Bedienernummer (4 Ziffern)
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={formData.operator_number ?? ""}
+                      onChange={(event) => handleOperatorNumberChange(event.target.value)}
+                      inputMode="numeric"
+                      pattern="[0-9]{4}"
+                      maxLength={4}
+                      required={!editingOperator}
+                      disabled={
+                        submitting ||
+                        (Boolean(editingOperator) && Boolean(editingOperator?.operator_number))
+                      }
+                      className="pl-9 text-center font-mono tracking-[0.2em]"
+                      placeholder="0000"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">
+                    PIN (6-8 Ziffern)
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={formData.pin ?? ""}
+                      onChange={(event) => handlePinChange(event.target.value)}
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]{6,8}"
+                      maxLength={8}
+                      required={!editingOperator}
+                      disabled={submitting}
+                      className="pl-9 text-center font-mono tracking-[0.2em]"
+                      placeholder={
+                        editingOperator
+                          ? "Leer lassen, um PIN nicht zu ändern"
+                          : "••••••"
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {formData.role === "owner" ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">E-Mail</label>
+                    <Input
+                      value={formData.email ?? ""}
+                      onChange={(event) =>
+                        setFormData((current) => ({ ...current, email: event.target.value }))
+                      }
+                      type="email"
+                      required={!editingOperator}
+                      maxLength={255}
+                      disabled={submitting}
+                      placeholder="owner@restaurant.de"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground">Passwort</label>
+                    <Input
+                      value={formData.password ?? ""}
+                      onChange={(event) =>
+                        setFormData((current) => ({ ...current, password: event.target.value }))
+                      }
+                      type="password"
+                      required={!editingOperator}
+                      minLength={8}
+                      maxLength={255}
+                      disabled={submitting}
+                      placeholder={
+                        editingOperator
+                          ? "Leer lassen, um Passwort nicht zu ändern"
+                          : "Mindestens 8 Zeichen"
+                      }
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">NFC Tag-ID (optional)</label>
+                <Input
+                  value={formData.nfc_tag_id ?? ""}
+                  onChange={(event) =>
+                    setFormData((current) => ({
+                      ...current,
+                      nfc_tag_id: event.target.value.toUpperCase(),
+                    }))
+                  }
+                  maxLength={64}
+                  disabled={submitting}
+                  className="font-mono"
+                  placeholder="04A1B2C3D4E5F6"
+                />
+              </div>
+
+              {formData.role === "owner" ? (
+                <p className="text-xs text-muted-foreground">
+                  Inhaber benötigen immer Bedienernummer + PIN (Dashboard/App) und
+                  E-Mail + Passwort (Web).
+                </p>
+              ) : null}
 
               {editingOperator ? (
                 <div className="space-y-1.5">
@@ -814,7 +992,7 @@ export default function AdminOperatorsPage() {
                         is_active: value === "active",
                       }))
                     }
-                    disabled={submitting}
+                    disabled={submitting || !canManageOperators}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Status wählen" />
@@ -833,7 +1011,7 @@ export default function AdminOperatorsPage() {
                 <X className="mr-2 h-4 w-4" />
                 Abbrechen
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting || !canManageOperators}>
                 {submitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

@@ -193,6 +193,8 @@ export interface AdminTenantCreate {
   email?: string;
   owner_first_name: string;
   owner_last_name: string;
+  owner_email: string;
+  owner_password: string;
   owner_operator_number: string;
   owner_pin: string;
 }
@@ -335,6 +337,7 @@ export const adminPlatformAdminsApi = {
     last_name: string;
     email: string;
     password: string;
+    role?: string;
   }) =>
     adminApi.post<AdminPlatformAdmin>("/admin/platform-admins", data),
 

@@ -297,6 +297,7 @@ function CreateAdminForm({
     last_name: "",
     email: "",
     password: "",
+    role: "platform_admin" as PlatformAdminRole,
   });
 
   const createMutation = useMutation({
@@ -357,6 +358,26 @@ function CreateAdminForm({
               minLength={8}
               required
             />
+          </div>
+          <div>
+            <Label>Rolle *</Label>
+            <Select
+              value={form.role}
+              onValueChange={(value) =>
+                setForm((current) => ({ ...current, role: toPlatformAdminRole(value) }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Rolle wählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {roleLabel(role)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="flex justify-end gap-2">

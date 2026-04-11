@@ -1,6 +1,7 @@
 import { adminApi } from "./client";
 import { getApiBaseUrl, API_PREFIX, buildApiUrl } from "./config";
 import { adminImpersonation } from "./admin";
+import { canLoginToWebAdminUi } from "@/lib/admin-access";
 
 export interface AdminUser {
   id: string;
@@ -47,7 +48,7 @@ export const adminAuthApi = {
 
     const result: StaffTokenResponse = await response.json();
 
-    if (result.user.role !== "platform_admin") {
+    if (!canLoginToWebAdminUi(result.user.role)) {
       throw new Error("Kein Admin-Zugang");
     }
 

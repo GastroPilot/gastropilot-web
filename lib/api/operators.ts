@@ -8,6 +8,7 @@ export type OperatorRole =
   | "staff"
   | "kitchen"
   | "guest";
+export type OperatorAuthMethod = "pin" | "password";
 
 export interface OperatorUser {
   id: string;
@@ -18,6 +19,7 @@ export interface OperatorUser {
   first_name: string;
   last_name: string;
   role: OperatorRole | string;
+  auth_method?: OperatorAuthMethod | string;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -30,6 +32,7 @@ export interface OperatorCreateInput {
   nfc_tag_id?: string | null;
   email?: string | null;
   password?: string | null;
+  auth_method?: OperatorAuthMethod;
   first_name: string;
   last_name: string;
   role: OperatorRole;
@@ -41,6 +44,7 @@ export interface OperatorUpdateInput {
   nfc_tag_id?: string | null;
   email?: string | null;
   password?: string | null;
+  auth_method?: OperatorAuthMethod;
   first_name?: string;
   last_name?: string;
   role?: OperatorRole;

@@ -14,12 +14,18 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { adminTenantsApi, type AdminTenant } from "@/lib/api/admin";
+import type { AdminTenant } from "@/lib/api/admin";
 import {
   devicesApi,
   type Device,
   type DeviceWithToken,
 } from "@/lib/api/devices";
+import {
+  getRestaurantAccessToken,
+  listAccessibleRestaurants,
+  withOptionalAccessToken,
+} from "@/lib/admin-tenant-context";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,6 +79,7 @@ function getStationLabel(station: string): string {
 }
 
 export default function AdminDevicesPage() {
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
   const [restaurants, setRestaurants] = useState<AdminTenant[]>([]);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [loadingRestaurants, setLoadingRestaurants] = useState(true);
@@ -102,15 +109,21 @@ export default function AdminDevicesPage() {
     [devices]
   );
 
-  const getTenantAccessToken = useCallback(async (restaurantId: string): Promise<string> => {
-    const session = await adminTenantsApi.impersonate(restaurantId);
-    return session.impersonation_token;
-  }, []);
+  const getTenantAccessToken = useCallback(async (restaurantId: string) => {
+    return getRestaurantAccessToken(adminRole, restaurantId);
+  }, [adminRole]);
 
   const loadRestaurants = useCallback(async () => {
+    if (!adminRole) {
+      setRestaurants([]);
+      setSelectedRestaurantId("");
+      setLoadingRestaurants(false);
+      return;
+    }
+
     setLoadingRestaurants(true);
     try {
-      const list = await adminTenantsApi.list();
+      const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((current) => {
         if (current && list.some((restaurant) => restaurant.id === current)) {
@@ -124,7 +137,7 @@ export default function AdminDevicesPage() {
     } finally {
       setLoadingRestaurants(false);
     }
-  }, []);
+  }, [adminRole]);
 
   const loadDevices = useCallback(
     async (restaurantId: string) => {
@@ -136,7 +149,7 @@ export default function AdminDevicesPage() {
       setLoadingDevices(true);
       try {
         const accessToken = await getTenantAccessToken(restaurantId);
-        const list = await devicesApi.list({ accessToken });
+        const list = await devicesApi.list(withOptionalAccessToken(accessToken));
         setDevices(list);
       } catch (error) {
         console.error("Fehler beim Laden der Geräte:", error);
@@ -210,7 +223,7 @@ export default function AdminDevicesPage() {
           name: normalizedName,
           station,
         },
-        { accessToken }
+        withOptionalAccessToken(accessToken)
       );
       toast.success("Gerät erstellt");
       closeCreateDialog();
@@ -236,7 +249,7 @@ export default function AdminDevicesPage() {
     setDeletingDeviceId(device.id);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
-      await devicesApi.remove(device.id, { accessToken });
+      await devicesApi.remove(device.id, withOptionalAccessToken(accessToken));
       toast.success("Gerät gelöscht");
       await loadDevices(selectedRestaurantId);
     } catch (error) {
@@ -258,7 +271,10 @@ export default function AdminDevicesPage() {
     setRegeneratingDeviceId(device.id);
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
-      const result = await devicesApi.regenerateToken(device.id, { accessToken });
+      const result = await devicesApi.regenerateToken(
+        device.id,
+        withOptionalAccessToken(accessToken)
+      );
       toast.success("Token erfolgreich neu generiert");
       setShownToken(result.device_token);
       setShownDeviceName(device.name);
