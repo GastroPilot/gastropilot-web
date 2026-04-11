@@ -7,6 +7,7 @@ import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import {
   LayoutDashboard,
   Users,
+  UserCog,
   CalendarDays,
   Star,
   LogOut,
@@ -22,6 +23,7 @@ const navItems = [
   { href: "/admin/tenants", label: "Restaurants", icon: Store },
   { href: "/admin/tenant-settings", label: "Restaurant-Einstellungen", icon: Settings },
   { href: "/admin/menu", label: "Menü verwalten", icon: UtensilsCrossed },
+  { href: "/admin/operators", label: "Bedienerverwaltung", icon: UserCog },
   { href: "/admin/platform-admins", label: "Zugänge", icon: ShieldCheck },
   { href: "/admin/guests", label: "Gäste", icon: Users },
   { href: "/admin/reservations", label: "Reservierungen", icon: CalendarDays },
