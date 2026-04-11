@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { adminImpersonation } from "@/lib/api/admin";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
+import { useDashboardUrl } from "@/lib/dashboard-url";
 import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
@@ -20,6 +21,7 @@ import {
   UtensilsCrossed,
   Undo2,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +45,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const dashboardUrl = useDashboardUrl();
   const { isAdmin, isLoading, adminUser, logout } = useAdminAuth();
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatingUserName, setImpersonatingUserName] = useState<string | null>(null);
@@ -117,6 +120,15 @@ export default function AdminLayout({
           })}
         </nav>
         <div className="mt-auto border-t p-4">
+          <a
+            href={dashboardUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-3 inline-flex w-full items-center justify-between rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
+          >
+            Restaurant-Dashboard
+            <ExternalLink className="h-4 w-4" />
+          </a>
           <div className="mb-2 truncate text-sm text-muted-foreground">
             {adminUser?.first_name} {adminUser?.last_name}
           </div>
@@ -135,6 +147,16 @@ export default function AdminLayout({
         <header className="flex h-16 items-center justify-between border-b px-4 md:hidden">
           <span className="text-lg font-bold text-primary">Admin</span>
           <nav className="flex items-center gap-2">
+            <a
+              href={dashboardUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md p-2 text-primary"
+              aria-label="Restaurant-Dashboard öffnen"
+              title="Restaurant-Dashboard öffnen"
+            >
+              <ExternalLink className="h-5 w-5" />
+            </a>
             {navItems.map((item) => (
               <Link
                 key={item.href}
