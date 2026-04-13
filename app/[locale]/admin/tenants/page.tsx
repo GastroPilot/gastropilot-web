@@ -211,6 +211,8 @@ function CreateTenantForm({
     email: "",
     owner_first_name: "",
     owner_last_name: "",
+    owner_email: "",
+    owner_password: "",
     owner_operator_number: "",
     owner_pin: "",
   });
@@ -276,6 +278,25 @@ function CreateTenantForm({
             <div>
               <Label>Nachname *</Label>
               <Input value={form.owner_last_name} onChange={set("owner_last_name")} required />
+            </div>
+            <div>
+              <Label>Owner E-Mail (Web-Login) *</Label>
+              <Input
+                type="email"
+                value={form.owner_email}
+                onChange={set("owner_email")}
+                required
+              />
+            </div>
+            <div>
+              <Label>Owner Passwort (min. 8 Zeichen) *</Label>
+              <Input
+                type="password"
+                value={form.owner_password}
+                onChange={set("owner_password")}
+                minLength={8}
+                required
+              />
             </div>
             <div>
               <Label>Bediener-Nr. (4 Ziffern) *</Label>

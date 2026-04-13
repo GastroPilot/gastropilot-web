@@ -193,14 +193,32 @@ export interface AdminTenantCreate {
   email?: string;
   owner_first_name: string;
   owner_last_name: string;
+  owner_email: string;
+  owner_password: string;
   owner_operator_number: string;
   owner_pin: string;
+}
+
+export interface AdminTenantImpersonation {
+  impersonation_token: string;
+  tenant_id: string;
+  tenant_name: string;
+}
+
+export interface AdminUserImpersonation {
+  impersonation_token: string;
+  user_id: string;
+  user_name: string;
+  tenant_id: string | null;
 }
 
 export const adminTenantsApi = {
   list: () => adminApi.get<AdminTenant[]>("/admin/tenants"),
 
   get: (id: string) => adminApi.get<AdminTenant>(`/admin/tenants/${id}`),
+
+  impersonate: (id: string) =>
+    adminApi.get<AdminTenantImpersonation>(`/admin/tenants/${id}/impersonate`),
 
   create: (data: AdminTenantCreate) =>
     adminApi.post<{
@@ -232,6 +250,67 @@ export const adminTenantsApi = {
     ),
 };
 
+export const adminUsersApi = {
+  impersonate: (id: string) =>
+    adminApi.get<AdminUserImpersonation>(`/admin/users/${id}/impersonate`),
+};
+
+const IMPERSONATION_KEYS = {
+  originalToken: "admin_original_token",
+  userId: "impersonating_user_id",
+  userName: "impersonating_user_name",
+} as const;
+
+export const adminImpersonation = {
+  start(token: string, userId: string, userName: string): void {
+    if (typeof window === "undefined") return;
+    if (!localStorage.getItem(IMPERSONATION_KEYS.originalToken)) {
+      const currentToken = localStorage.getItem("admin_access_token");
+      if (currentToken) {
+        localStorage.setItem(IMPERSONATION_KEYS.originalToken, currentToken);
+      }
+    }
+    localStorage.setItem("admin_access_token", token);
+    localStorage.setItem(IMPERSONATION_KEYS.userId, userId);
+    localStorage.setItem(IMPERSONATION_KEYS.userName, userName);
+  },
+
+  stop(): void {
+    if (typeof window === "undefined") return;
+    const originalToken = localStorage.getItem(IMPERSONATION_KEYS.originalToken);
+    if (originalToken) {
+      localStorage.setItem("admin_access_token", originalToken);
+    } else {
+      localStorage.removeItem("admin_access_token");
+    }
+    localStorage.removeItem(IMPERSONATION_KEYS.originalToken);
+    localStorage.removeItem(IMPERSONATION_KEYS.userId);
+    localStorage.removeItem(IMPERSONATION_KEYS.userName);
+  },
+
+  clear(): void {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(IMPERSONATION_KEYS.originalToken);
+    localStorage.removeItem(IMPERSONATION_KEYS.userId);
+    localStorage.removeItem(IMPERSONATION_KEYS.userName);
+  },
+
+  isActive(): boolean {
+    if (typeof window === "undefined") return false;
+    return Boolean(localStorage.getItem(IMPERSONATION_KEYS.userId));
+  },
+
+  getUserId(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(IMPERSONATION_KEYS.userId);
+  },
+
+  getUserName(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(IMPERSONATION_KEYS.userName);
+  },
+};
+
 // ─── Platform Admin Types ──────────────────────────────────────────────────
 
 export interface AdminPlatformAdmin {
@@ -258,6 +337,7 @@ export const adminPlatformAdminsApi = {
     last_name: string;
     email: string;
     password: string;
+    role?: string;
   }) =>
     adminApi.post<AdminPlatformAdmin>("/admin/platform-admins", data),
 
@@ -268,6 +348,7 @@ export const adminPlatformAdminsApi = {
       last_name?: string;
       email?: string;
       password?: string;
+      role?: string;
       is_active?: boolean;
     }
   ) =>

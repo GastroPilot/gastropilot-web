@@ -86,53 +86,45 @@ export function Navbar() {
           {isAuthenticated && <NotificationBell />}
 
           {isLoggedIn ? (
-            <div className="relative">
-              <button
-                onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 rounded-full border border-border/60 px-3 py-1.5 text-[14px] font-medium transition-colors hover:bg-accent"
-              >
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary">
-                  {isAdmin && !isAuthenticated ? (
-                    <Shield className="h-3.5 w-3.5" />
-                  ) : (
-                    <User className="h-3.5 w-3.5" />
-                  )}
-                </div>
-                <span className="max-w-[100px] truncate">{displayName}</span>
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-              {profileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-border/60 bg-card p-1.5 shadow-xl shadow-black/[0.06]">
-                  {isAuthenticated && (
-                    <>
-                      <Link href="/profile" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Profil</Link>
-                      <Link href="/reservations" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Reservierungen</Link>
-                      <Link href="/favorites" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Merkliste</Link>
-                    </>
-                  )}
-                  {isAdmin && (
-                    <Link href="/admin" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Admin</Link>
-                  )}
-                  <div className="my-1 h-px bg-border" />
-                  <a
-                    href={dashboardUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between rounded-[10px] px-3 py-2 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    Restaurant-Dashboard
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                  <div className="my-1 h-px bg-border" />
-                  <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Abmelden
-                  </button>
-                </div>
-              )}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center gap-2 rounded-full border border-border/60 px-3 py-1.5 text-[14px] font-medium transition-colors hover:bg-accent"
+                >
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary">
+                    {isAdmin && !isAuthenticated ? (
+                      <Shield className="h-3.5 w-3.5" />
+                    ) : (
+                      <User className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                  <span className="max-w-[100px] truncate">{displayName}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-border/60 bg-card p-1.5 shadow-xl shadow-black/[0.06]">
+                    {isAuthenticated && (
+                      <>
+                        <Link href="/profile" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Profil</Link>
+                        <Link href="/reservations" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Reservierungen</Link>
+                        <Link href="/favorites" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Merkliste</Link>
+                      </>
+                    )}
+                    {isAdmin && (
+                      <Link href="/admin" className="block rounded-[10px] px-3 py-2 text-[14px] font-medium hover:bg-accent" onClick={() => setProfileOpen(false)}>Admin</Link>
+                    )}
+                    <div className="my-1 h-px bg-border" />
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-[14px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      Abmelden
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -160,6 +152,19 @@ export function Navbar() {
           <nav className="flex flex-col px-4 py-3">
             <Link href="/restaurants" className="rounded-[10px] px-3 py-2.5 text-[15px] font-medium" onClick={() => setMobileOpen(false)}>Restaurants</Link>
             <Link href="/fuer-restaurants" className="rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-muted-foreground" onClick={() => setMobileOpen(false)}>Für Restaurants</Link>
+
+            {isLoggedIn && (
+              <a
+                href={dashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 flex items-center justify-between rounded-[10px] border border-primary/25 bg-primary/10 px-3 py-2.5 text-[15px] font-semibold text-primary"
+              >
+                Restaurant-Dashboard
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+
             <div className="my-2 h-px bg-border" />
 
             {isLoggedIn ? (
