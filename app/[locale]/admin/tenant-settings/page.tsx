@@ -187,6 +187,7 @@ export default function TenantSettingsPage() {
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   const [savingContact, setSavingContact] = useState(false);
+  const [savingBusiness, setSavingBusiness] = useState(false);
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [savingBooking, setSavingBooking] = useState(false);
   const [savingHours, setSavingHours] = useState(false);
@@ -199,6 +200,14 @@ export default function TenantSettingsPage() {
   const [email, setEmail] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  // Unternehmensdaten (§ 14 UStG Pflichtangaben)
+  const [companyName, setCompanyName] = useState("");
+  const [street, setStreet] = useState("");
+  const [zipCode, setZipCode] = useState("");
+  const [city, setCity] = useState("");
+  const [taxNumber, setTaxNumber] = useState("");
+  const [vatId, setVatId] = useState("");
 
   const [website, setWebsite] = useState("");
   const [timezone, setTimezone] = useState(DEFAULT_TENANT_SETTINGS.timezone);
@@ -259,6 +268,12 @@ export default function TenantSettingsPage() {
       setPhone(restaurant.phone ?? "");
       setEmail(restaurant.email ?? "");
       setDescription(restaurant.description ?? "");
+      setCompanyName(restaurant.company_name ?? "");
+      setStreet(restaurant.street ?? "");
+      setZipCode(restaurant.zip_code ?? "");
+      setCity(restaurant.city ?? "");
+      setTaxNumber(restaurant.tax_number ?? "");
+      setVatId(restaurant.vat_id ?? "");
       setSlug(restaurant.slug ?? "");
 
       setImageUrl(
@@ -411,6 +426,27 @@ export default function TenantSettingsPage() {
       toast.error("Stammdaten konnten nicht gespeichert werden");
     } finally {
       setSavingContact(false);
+    }
+  };
+
+  const saveBusiness = async () => {
+    if (!selectedRestaurantId) return;
+    setSavingBusiness(true);
+    try {
+      await adminRestaurantsApi.update(selectedRestaurantId, {
+        company_name: companyName.trim() || null,
+        street: street.trim() || null,
+        zip_code: zipCode.trim() || null,
+        city: city.trim() || null,
+        tax_number: taxNumber.trim() || null,
+        vat_id: vatId.trim() || null,
+      });
+      toast.success("Unternehmensdaten gespeichert");
+    } catch (error) {
+      console.error("Fehler beim Speichern der Unternehmensdaten:", error);
+      toast.error("Unternehmensdaten konnten nicht gespeichert werden");
+    } finally {
+      setSavingBusiness(false);
     }
   };
 
@@ -715,6 +751,76 @@ export default function TenantSettingsPage() {
                 </label>
               </div>
             </FieldRow>
+          </Section>
+
+          <Section
+            icon={Building2}
+            title="Unternehmensdaten"
+            description="Pflichtangaben für Rechnungen und Belege gem. § 14 UStG."
+            onSave={saveBusiness}
+            saving={savingBusiness}
+          >
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <FieldRow label="Firmenbezeichnung" hint="Vollständiger Unternehmensname für Rechnungen">
+                <Input
+                  value={companyName}
+                  onChange={(event) => setCompanyName(event.target.value)}
+                  placeholder="Muster Restaurant GmbH"
+                  className="w-full"
+                />
+              </FieldRow>
+              <FieldRow label="Straße + Hausnummer">
+                <Input
+                  value={street}
+                  onChange={(event) => setStreet(event.target.value)}
+                  placeholder="Musterstraße 1"
+                  className="w-full"
+                />
+              </FieldRow>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <FieldRow label="PLZ">
+                <Input
+                  value={zipCode}
+                  onChange={(event) => setZipCode(event.target.value)}
+                  placeholder="12345"
+                  className="w-full"
+                />
+              </FieldRow>
+              <FieldRow label="Ort">
+                <Input
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                  placeholder="Berlin"
+                  className="w-full"
+                />
+              </FieldRow>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <FieldRow label="Steuernummer" hint="Vom Finanzamt zugeteilte Steuernummer">
+                <Input
+                  value={taxNumber}
+                  onChange={(event) => setTaxNumber(event.target.value)}
+                  placeholder="123/456/78901"
+                  className="w-full"
+                />
+              </FieldRow>
+              <FieldRow label="USt-IdNr." hint="Umsatzsteuer-Identifikationsnummer (optional)">
+                <Input
+                  value={vatId}
+                  onChange={(event) => setVatId(event.target.value)}
+                  placeholder="DE123456789"
+                  className="w-full"
+                />
+              </FieldRow>
+            </div>
+
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+              Gem. § 14 Abs. 4 UStG müssen auf jeder Rechnung der vollständige Name und die Anschrift
+              des leistenden Unternehmers sowie die Steuernummer oder USt-IdNr. angegeben werden.
+            </div>
           </Section>
 
             <Section

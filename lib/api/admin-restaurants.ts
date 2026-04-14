@@ -8,6 +8,13 @@ export interface AdminRestaurant {
   phone: string | null;
   email: string | null;
   description: string | null;
+  company_name: string | null;
+  street: string | null;
+  zip_code: string | null;
+  city: string | null;
+  country: string | null;
+  tax_number: string | null;
+  vat_id: string | null;
   settings: Record<string, unknown>;
 }
 
@@ -17,6 +24,13 @@ export interface AdminRestaurantUpdate {
   phone?: string | null;
   email?: string | null;
   description?: string | null;
+  company_name?: string | null;
+  street?: string | null;
+  zip_code?: string | null;
+  city?: string | null;
+  country?: string | null;
+  tax_number?: string | null;
+  vat_id?: string | null;
 }
 
 export const adminRestaurantsApi = {
