@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { InviteGuestsSection } from "@/components/invite-guests-section";
 
 const STATUS_MAP: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Ausstehend", variant: "outline" },
@@ -162,6 +163,14 @@ export default function ReservationDetailPage() {
           <QrCodeCard
             confirmationCode={reservation.confirmation_code}
             restaurantSlug={reservation.restaurant_slug}
+          />
+        )}
+
+        {isUpcoming && reservation.party_size > 1 && (
+          <InviteGuestsSection
+            reservationId={reservation.id}
+            partySize={reservation.party_size}
+            status={reservation.status}
           />
         )}
 

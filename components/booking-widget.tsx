@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAvailability, useCreateReservation } from "@/lib/hooks/use-reservations";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Clock, Users, Check, ExternalLink } from "lucide-react";
+import { CalendarDays, Clock, Users, Check, ExternalLink, UserPlus } from "lucide-react";
 import type { TimeSlot } from "@/lib/api/reservations";
 
 interface BookingWidgetProps {
@@ -99,6 +99,14 @@ export function BookingWidget({ slug, maxPartySize = 12, className }: BookingWid
             <p className="text-sm">
               Bestätigungscode: <span className="font-mono font-bold">{confirmationCode}</span>
             </p>
+          )}
+          {partySize > 1 && (
+            <Link href="/reservations" className="w-full">
+              <Button variant="default" className="w-full">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Gäste einladen
+              </Button>
+            </Link>
           )}
           <Button
             variant="outline"
