@@ -97,7 +97,7 @@ export function OpeningHours({ openingHours, compact }: OpeningHoursProps) {
             key={day}
             className={cn(
               "flex justify-between text-sm",
-              isToday && "font-semibold text-primary"
+              isToday && "font-semibold text-primary-contrast"
             )}
           >
             <span>{WEEKDAY_LABELS[day]}</span>

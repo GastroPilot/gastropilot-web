@@ -114,7 +114,7 @@ export default function AdminTenantsPage() {
                   <td className="px-4 py-3">
                     <button
                       onClick={() => router.push(`/admin/tenants/${tenant.id}`)}
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary-contrast hover:underline"
                     >
                       {tenant.name}
                     </button>

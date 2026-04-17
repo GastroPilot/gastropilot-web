@@ -488,7 +488,7 @@ export function RestaurantDetailClient({
                   <div className="rounded-lg border p-4 text-center text-sm text-muted-foreground">
                     <a
                       href="/auth/login"
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary-contrast hover:underline"
                     >
                       Melden Sie sich an
                     </a>
@@ -588,7 +588,7 @@ export function RestaurantDetailClient({
                         )}
                         {review.staff_reply && (
                           <div className="mt-3 border-l-2 border-primary/30 pl-3">
-                            <p className="text-xs font-medium text-primary">
+                            <p className="text-xs font-medium text-primary-contrast">
                               Antwort vom Restaurant
                               {review.staff_reply_at && (
                                 <span className="ml-1 font-normal text-muted-foreground">
@@ -634,7 +634,7 @@ export function RestaurantDetailClient({
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.address)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                      className="mt-1 inline-flex items-center gap-1 text-sm text-primary-contrast hover:underline"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Auf Google Maps öffnen
@@ -650,7 +650,7 @@ export function RestaurantDetailClient({
                     </h3>
                     <a
                       href={`tel:${restaurant.phone}`}
-                      className="text-sm text-primary hover:underline"
+                      className="text-sm text-primary-contrast hover:underline"
                     >
                       {restaurant.phone}
                     </a>
@@ -665,7 +665,7 @@ export function RestaurantDetailClient({
                     </h3>
                     <a
                       href={`mailto:${restaurant.email}`}
-                      className="text-sm text-primary hover:underline"
+                      className="text-sm text-primary-contrast hover:underline"
                     >
                       {restaurant.email}
                     </a>
@@ -694,7 +694,7 @@ export function RestaurantDetailClient({
                   Bitte rufen Sie an:{" "}
                   <a
                     href={`tel:${restaurant.phone}`}
-                    className="text-primary hover:underline"
+                    className="text-primary-contrast hover:underline"
                   >
                     {restaurant.phone}
                   </a>

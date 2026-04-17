@@ -62,7 +62,7 @@ export function InviteGuestsSection({ reservationId, partySize, status }: Props)
     <div className="space-y-3 rounded-lg border bg-card p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" />
+          <Users className="h-4 w-4 text-primary-contrast" />
           <h3 className="text-sm font-semibold">Eingeladene Gäste</h3>
         </div>
         <span className="text-xs text-muted-foreground">

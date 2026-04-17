@@ -149,7 +149,7 @@ export default function AdminReviewsPage() {
                     <div className="truncate">{review.title || review.text || "—"}</div>
                     {review.staff_reply && (
                       <div className="mt-1 truncate border-l-2 border-primary/30 pl-2 text-xs">
-                        <span className="font-medium text-primary">Antwort:</span>{" "}
+                        <span className="font-medium text-primary-contrast">Antwort:</span>{" "}
                         {review.staff_reply}
                       </div>
                     )}

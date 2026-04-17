@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
           <CardFooter className="justify-center">
             <Link
               href="/auth/login"
-              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary-contrast hover:underline"
             >
               <ArrowLeft className="h-4 w-4" />
               Zurück zur Anmeldung

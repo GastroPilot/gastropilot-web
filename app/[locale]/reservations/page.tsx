@@ -46,7 +46,7 @@ function ReservationCard({ reservation }: { reservation: Reservation }) {
             <div className="flex items-center gap-2">
               <Link
                 href={`/reservations/${reservation.id}`}
-                className="text-lg font-semibold hover:text-primary hover:underline"
+                className="text-lg font-semibold hover:text-primary-contrast hover:underline"
               >
                 {reservation.restaurant_name}
               </Link>
