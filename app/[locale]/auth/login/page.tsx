@@ -82,7 +82,7 @@ export default function LoginPage() {
                 <Label htmlFor="password">Passwort</Label>
                 <Link
                   href="/auth/forgot-password"
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs text-primary-contrast hover:underline"
                 >
                   Passwort vergessen?
                 </Link>
@@ -104,7 +104,7 @@ export default function LoginPage() {
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Noch kein Konto?{" "}
-              <Link href="/auth/register" className="font-medium text-primary hover:underline">
+              <Link href="/auth/register" className="font-medium text-primary-contrast hover:underline">
                 Jetzt registrieren
               </Link>
             </div>

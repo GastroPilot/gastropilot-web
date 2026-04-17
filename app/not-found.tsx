@@ -8,7 +8,7 @@ export default function GlobalNotFound() {
         </p>
         <a
           href="/"
-          className="mt-4 inline-block text-primary hover:underline"
+          className="mt-4 inline-block text-primary-contrast hover:underline"
         >
           Zur Startseite
         </a>

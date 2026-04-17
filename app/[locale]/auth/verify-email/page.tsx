@@ -39,7 +39,7 @@ function VerifyEmailContent() {
         <CardContent className="flex flex-col items-center p-8 text-center">
           {status === "loading" && (
             <>
-              <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
+              <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary-contrast" />
               <h1 className="text-xl font-semibold">E-Mail wird verifiziert...</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Bitte warten Sie einen Moment.

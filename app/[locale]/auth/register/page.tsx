@@ -160,7 +160,7 @@ export default function RegisterPage() {
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Bereits ein Konto?{" "}
-              <Link href="/auth/login" className="font-medium text-primary hover:underline">
+              <Link href="/auth/login" className="font-medium text-primary-contrast hover:underline">
                 Anmelden
               </Link>
             </div>

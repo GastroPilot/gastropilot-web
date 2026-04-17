@@ -100,7 +100,7 @@ export default function AdminGuestsPage() {
                   <td className="px-4 py-3">
                     <button
                       onClick={() => router.push(`/admin/guests/${guest.id}`)}
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary-contrast hover:underline"
                     >
                       {guest.first_name} {guest.last_name}
                     </button>

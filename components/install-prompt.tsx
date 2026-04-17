@@ -44,7 +44,7 @@ export function InstallPrompt() {
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md rounded-lg border bg-card p-4 shadow-lg sm:left-auto sm:right-4">
       <div className="flex items-start gap-3">
-        <Download className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <Download className="mt-0.5 h-5 w-5 shrink-0 text-primary-contrast" />
         <div className="flex-1">
           <p className="text-sm font-medium">GastroPilot installieren</p>
           <p className="mt-0.5 text-xs text-muted-foreground">

@@ -158,7 +158,7 @@ export function Navbar() {
                 href={dashboardUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 flex items-center justify-between rounded-[10px] border border-primary/25 bg-primary/10 px-3 py-2.5 text-[15px] font-semibold text-primary"
+                className="mt-2 flex items-center justify-between rounded-[10px] border border-primary/25 bg-primary/10 px-3 py-2.5 text-[15px] font-semibold text-primary-contrast"
               >
                 Restaurant-Dashboard
                 <ExternalLink className="h-4 w-4" />

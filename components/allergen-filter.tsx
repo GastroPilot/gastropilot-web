@@ -37,7 +37,7 @@ export function AllergenFilter({ selectedAllergens, onToggle, className }: Aller
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
               isSelected
-                ? "border-primary bg-primary/10 text-primary"
+                ? "border-primary bg-primary/10 text-primary-contrast"
                 : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
             aria-pressed={isSelected}
