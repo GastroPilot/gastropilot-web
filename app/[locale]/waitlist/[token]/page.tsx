@@ -130,7 +130,7 @@ export default function WaitlistPage() {
             </div>
           ) : status.status === "seated" ? (
             <div className="rounded-lg bg-primary/10 p-6 text-center">
-              <p className="text-xl font-bold text-primary">Sie wurden platziert</p>
+              <p className="text-xl font-bold text-primary-contrast">Sie wurden platziert</p>
               <p className="mt-2 text-sm text-muted-foreground">Guten Appetit!</p>
             </div>
           ) : status.status === "expired" ? (
@@ -145,7 +145,7 @@ export default function WaitlistPage() {
               {/* Position Animation */}
               <div className="flex flex-col items-center gap-2">
                 <div className="relative flex h-28 w-28 items-center justify-center rounded-full border-4 border-primary">
-                  <span className="text-4xl font-bold text-primary animate-pulse">
+                  <span className="text-4xl font-bold text-primary-contrast animate-pulse">
                     {status.position}
                   </span>
                 </div>

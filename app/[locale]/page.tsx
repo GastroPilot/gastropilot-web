@@ -46,7 +46,7 @@ export default function HomePage() {
           <h1 className="text-[clamp(2.25rem,5.5vw,3.75rem)] font-extrabold leading-[0.95] tracking-[-2px]">
             Dein Restaurant
             <br />
-            <span className="text-primary">finden & reservieren.</span>
+            <span className="text-primary-contrast">finden & reservieren.</span>
           </h1>
           <p className="mx-auto mt-5 max-w-md text-[16px] font-normal leading-relaxed text-muted-foreground">
             Suche nach Küche, Standort oder Allergenen – und reserviere deinen Tisch direkt online.
@@ -155,7 +155,7 @@ export default function HomePage() {
           <div className="overflow-hidden rounded-2xl border bg-card">
             <div className="flex flex-col gap-8 p-8 sm:flex-row sm:items-center sm:justify-between sm:p-10">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary">
+                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary-contrast">
                   Für Restaurantbetreiber
                 </p>
                 <h2 className="mt-2 text-[22px] font-bold tracking-tight">

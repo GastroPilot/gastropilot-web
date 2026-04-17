@@ -154,7 +154,7 @@ export default async function AllergenCityPage({ params }: PageProps) {
           </p>
           <Link
             href="/restaurants"
-            className="text-primary hover:underline mt-4 inline-block"
+            className="text-primary-contrast hover:underline mt-4 inline-block"
           >
             Alle Restaurants anzeigen
           </Link>
@@ -169,7 +169,7 @@ export default async function AllergenCityPage({ params }: PageProps) {
             >
               <h2 className="text-lg font-semibold">{r.name}</h2>
               {r.cuisine_type && (
-                <p className="text-sm text-primary">{r.cuisine_type}</p>
+                <p className="text-sm text-primary-contrast">{r.cuisine_type}</p>
               )}
               {r.address && (
                 <p className="text-sm text-muted-foreground mt-1">

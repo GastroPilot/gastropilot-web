@@ -116,7 +116,7 @@ export default function AdminLayout({
       {/* Sidebar */}
       <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
         <div className="flex h-16 items-center border-b px-6">
-          <span className="text-lg font-bold text-primary">Admin</span>
+          <span className="text-lg font-bold text-primary-contrast">Admin</span>
         </div>
         <nav className="flex flex-col gap-1 p-4">
           {visibleNavItems.map((item) => {
@@ -128,7 +128,7 @@ export default function AdminLayout({
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-primary/10 text-primary-contrast"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
@@ -143,7 +143,7 @@ export default function AdminLayout({
             href={dashboardUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="mb-3 inline-flex w-full items-center justify-between rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
+            className="mb-3 inline-flex w-full items-center justify-between rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary-contrast transition-colors hover:bg-primary/15"
           >
             Restaurant-Dashboard
             <ExternalLink className="h-4 w-4" />
@@ -164,13 +164,13 @@ export default function AdminLayout({
       {/* Mobile header */}
       <div className="flex flex-1 flex-col">
         <header className="flex h-16 items-center justify-between border-b px-4 md:hidden">
-          <span className="text-lg font-bold text-primary">Admin</span>
+          <span className="text-lg font-bold text-primary-contrast">Admin</span>
           <nav className="flex items-center gap-2">
             <a
               href={dashboardUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-md p-2 text-primary"
+              className="rounded-md p-2 text-primary-contrast"
               aria-label="Restaurant-Dashboard öffnen"
               title="Restaurant-Dashboard öffnen"
             >
@@ -183,7 +183,7 @@ export default function AdminLayout({
                 className={cn(
                   "rounded-md p-2",
                   isNavItemActive(item.href)
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-primary/10 text-primary-contrast"
                     : "text-muted-foreground"
                 )}
               >

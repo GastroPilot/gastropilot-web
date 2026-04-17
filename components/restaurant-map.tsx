@@ -66,7 +66,7 @@ export function RestaurantMap({ restaurants }: RestaurantMapProps) {
               <div className="min-w-[180px]">
                 <Link
                   href={`/restaurants/${restaurant.slug}`}
-                  className="text-sm font-semibold text-primary hover:underline"
+                  className="text-sm font-semibold text-primary-contrast hover:underline"
                 >
                   {restaurant.name}
                 </Link>

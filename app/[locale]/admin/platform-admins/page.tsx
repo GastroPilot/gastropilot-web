@@ -235,7 +235,7 @@ export default function AdminPlatformAdminsPage() {
                             {impersonatingId === admin.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                              <LogIn className="h-4 w-4 text-primary" />
+                              <LogIn className="h-4 w-4 text-primary-contrast" />
                             )}
                           </Button>
                           <Button

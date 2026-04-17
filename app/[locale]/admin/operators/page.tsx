@@ -709,7 +709,7 @@ export default function AdminOperatorsPage() {
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                             {operator.nfc_tag_id ? (
                               <span className="inline-flex items-center gap-1 font-mono text-xs text-foreground">
-                                <WalletCards className="h-3.5 w-3.5 text-primary" />
+                                <WalletCards className="h-3.5 w-3.5 text-primary-contrast" />
                                 {operator.nfc_tag_id}
                               </span>
                             ) : (

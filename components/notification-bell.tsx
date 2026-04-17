@@ -93,7 +93,7 @@ export function NotificationBell() {
             {unread > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-xs text-primary hover:underline"
+                className="text-xs text-primary-contrast hover:underline"
               >
                 Alle gelesen
               </button>

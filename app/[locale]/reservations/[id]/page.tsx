@@ -102,7 +102,7 @@ export default function ReservationDetailPage() {
             <CardTitle className="text-lg">
               <Link
                 href={`/restaurants/${reservation.restaurant_slug}`}
-                className="hover:text-primary hover:underline"
+                className="hover:text-primary-contrast hover:underline"
               >
                 {reservation.restaurant_name}
               </Link>

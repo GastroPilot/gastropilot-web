@@ -160,7 +160,7 @@ function Section({
       <CardHeader className="border-b border-border/70 pb-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
-            <Icon className="mt-0.5 h-4 w-4 text-primary" />
+            <Icon className="mt-0.5 h-4 w-4 text-primary-contrast" />
             <div>
               <CardTitle className="text-base">{title}</CardTitle>
               {description ? (

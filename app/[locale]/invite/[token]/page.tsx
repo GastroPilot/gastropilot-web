@@ -121,7 +121,7 @@ export default function InvitePage() {
       <div className="w-full max-w-lg space-y-4">
         {/* Header */}
         <div className="text-center">
-          <UserPlus className="mx-auto h-12 w-12 text-primary" />
+          <UserPlus className="mx-auto h-12 w-12 text-primary-contrast" />
           <h1 className="mt-3 text-2xl font-bold">Du bist eingeladen!</h1>
         </div>
 
@@ -133,15 +133,15 @@ export default function InvitePage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-primary" />
+              <Calendar className="h-4 w-4 text-primary-contrast" />
               <span>{res.date}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 text-primary" />
+              <Clock className="h-4 w-4 text-primary-contrast" />
               <span>{res.time} Uhr</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Users className="h-4 w-4 text-primary" />
+              <Users className="h-4 w-4 text-primary-contrast" />
               <span>{res.party_size} Personen</span>
             </div>
           </CardContent>
