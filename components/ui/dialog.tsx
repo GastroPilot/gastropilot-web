@@ -54,15 +54,16 @@ export function DialogContent({ children, className = "", onClose, showClose = t
   return (
     <div
       className={`
-        relative bg-card rounded-lg shadow-xl max-w-lg md:max-w-2xl w-full mx-4 md:mx-6
-        max-h-[90vh] overflow-y-auto z-[100] border border-border
+        relative z-[100] w-screen max-w-none border border-border bg-card shadow-xl
+        h-[100dvh] max-h-[100dvh] overflow-y-auto overscroll-contain
+        rounded-none sm:mx-4 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-lg sm:rounded-lg md:mx-6 md:max-w-2xl
         ${className}
       `}
       onClick={(e) => e.stopPropagation()}
     >
       {onClose && showClose && (
         <button
-          className="absolute top-2 right-2 text-foreground bg-muted hover:bg-accent px-3 py-2 rounded-md text-xl font-bold leading-none touch-manipulation min-h-[36px] min-w-[36px] flex items-center justify-center"
+          className="absolute right-3 top-3 z-[110] flex min-h-[40px] min-w-[40px] items-center justify-center rounded-md bg-muted px-3 py-2 text-xl font-bold leading-none text-foreground touch-manipulation hover:bg-accent sm:right-2 sm:top-2 sm:min-h-[36px] sm:min-w-[36px]"
           onClick={onClose}
           aria-label="Schließen"
         >

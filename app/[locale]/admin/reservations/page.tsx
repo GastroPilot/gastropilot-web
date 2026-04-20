@@ -64,6 +64,7 @@ export default function AdminReservationsPage() {
   };
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
+  const reservations = data?.items ?? [];
 
   return (
     <div>
@@ -86,98 +87,173 @@ export default function AdminReservationsPage() {
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium">Restaurant</th>
-              <th className="px-4 py-3 text-left font-medium">Gast</th>
-              <th className="px-4 py-3 text-left font-medium">Personen</th>
-              <th className="px-4 py-3 text-left font-medium">Datum</th>
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-right font-medium">Aktionen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-b">
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-8" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-20" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-6 w-24 ml-auto" /></td>
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-md border p-4 md:hidden">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="mt-2 h-4 w-52" />
+              <Skeleton className="mt-3 h-10 w-full" />
+            </div>
+          ))}
+          <div className="hidden overflow-x-auto rounded-md border md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-medium">Restaurant</th>
+                  <th className="px-4 py-3 text-left font-medium">Gast</th>
+                  <th className="px-4 py-3 text-left font-medium">Personen</th>
+                  <th className="px-4 py-3 text-left font-medium">Datum</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Aktionen</th>
                 </tr>
-              ))
-            ) : data?.items.length === 0 ? (
-              <tr>
-                <td colSpan={6}>
-                  <EmptyState
-                    icon={CalendarDays}
-                    title="Keine Reservierungen gefunden"
-                    description="Es liegen keine Reservierungen mit den aktuellen Filtern vor."
-                  />
-                </td>
-              </tr>
-            ) : (
-              data?.items.map((r) => (
-                <tr key={r.id} className="border-b hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">
-                    {r.restaurant_name}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div>{r.guest_name || "—"}</div>
-                    {r.guest_email && (
-                      <div className="text-xs text-muted-foreground">
-                        {r.guest_email}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{r.party_size}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {r.start_at
-                      ? new Date(r.start_at).toLocaleString("de-DE", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_COLORS[r.status] || "secondary"}>
-                      {STATUS_LABELS[r.status] || r.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <select
-                      className="rounded border bg-background px-2 py-1 text-xs"
-                      value={r.status}
-                      onChange={(e) => handleStatusChange(r.id, e.target.value)}
-                      disabled={statusMutation.isPending}
-                    >
-                      {STATUSES.filter((s) => s !== "").map((s) => (
-                        <option key={s} value={s}>
-                          {STATUS_LABELS[s]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-8" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="ml-auto h-6 w-24" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : reservations.length === 0 ? (
+        <EmptyState
+          icon={CalendarDays}
+          title="Keine Reservierungen gefunden"
+          description="Es liegen keine Reservierungen mit den aktuellen Filtern vor."
+        />
+      ) : (
+        <>
+          <div className="space-y-3 md:hidden">
+            {reservations.map((r) => (
+              <div key={r.id} className="rounded-md border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">{r.restaurant_name}</div>
+                    <div className="text-sm text-muted-foreground">{r.guest_name || "—"}</div>
+                    {r.guest_email ? (
+                      <div className="text-xs text-muted-foreground">{r.guest_email}</div>
+                    ) : null}
+                  </div>
+                  <Badge variant={STATUS_COLORS[r.status] || "secondary"}>
+                    {STATUS_LABELS[r.status] || r.status}
+                  </Badge>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Personen</p>
+                    <p className="font-medium">{r.party_size}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Datum</p>
+                    <p className="font-medium">
+                      {r.start_at
+                        ? new Date(r.start_at).toLocaleString("de-DE", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="text-xs text-muted-foreground">Status ändern</label>
+                  <select
+                    className="mt-1 w-full rounded border bg-background px-2 py-2 text-sm"
+                    value={r.status}
+                    onChange={(e) => handleStatusChange(r.id, e.target.value)}
+                    disabled={statusMutation.isPending}
+                  >
+                    {STATUSES.filter((s) => s !== "").map((s) => (
+                      <option key={s} value={s}>
+                        {STATUS_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-md border md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-medium">Restaurant</th>
+                  <th className="px-4 py-3 text-left font-medium">Gast</th>
+                  <th className="px-4 py-3 text-left font-medium">Personen</th>
+                  <th className="px-4 py-3 text-left font-medium">Datum</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Aktionen</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {reservations.map((r) => (
+                  <tr key={r.id} className="border-b hover:bg-muted/30">
+                    <td className="px-4 py-3 font-medium">{r.restaurant_name}</td>
+                    <td className="px-4 py-3">
+                      <div>{r.guest_name || "—"}</div>
+                      {r.guest_email ? (
+                        <div className="text-xs text-muted-foreground">{r.guest_email}</div>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3">{r.party_size}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {r.start_at
+                        ? new Date(r.start_at).toLocaleString("de-DE", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={STATUS_COLORS[r.status] || "secondary"}>
+                        {STATUS_LABELS[r.status] || r.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <select
+                        className="rounded border bg-background px-2 py-1 text-xs"
+                        value={r.status}
+                        onChange={(e) => handleStatusChange(r.id, e.target.value)}
+                        disabled={statusMutation.isPending}
+                      >
+                        {STATUSES.filter((s) => s !== "").map((s) => (
+                          <option key={s} value={s}>
+                            {STATUS_LABELS[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm text-muted-foreground">
             Seite {page} von {totalPages} ({data?.total} Reservierungen)
           </span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 self-start sm:self-auto">
             <Button
               variant="outline"
               size="sm"

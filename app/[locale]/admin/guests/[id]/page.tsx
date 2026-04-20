@@ -134,7 +134,7 @@ export default function AdminGuestDetailPage() {
         <Card>
           <CardHeader><Skeleton className="h-6 w-40" /></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
@@ -161,7 +161,7 @@ export default function AdminGuestDetailPage() {
       </button>
 
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">
             {guest.first_name} {guest.last_name}
@@ -212,7 +212,7 @@ export default function AdminGuestDetailPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleProfileSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">Vorname</Label>
                   <Input
@@ -232,7 +232,7 @@ export default function AdminGuestDetailPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="email">E-Mail</Label>
                   <Input
@@ -251,7 +251,7 @@ export default function AdminGuestDetailPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="language">Sprache</Label>
                   <select
@@ -348,7 +348,10 @@ export default function AdminGuestDetailPage() {
             <CardContent>
               <div className="space-y-3">
                 {guestReservations.map((r: AdminReservation) => (
-                  <div key={r.id} className="flex items-center justify-between rounded-md border p-3">
+                  <div
+                    key={r.id}
+                    className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
                     <div>
                       <div className="font-medium">{r.restaurant_name}</div>
                       <div className="text-sm text-muted-foreground">
@@ -388,7 +391,7 @@ export default function AdminGuestDetailPage() {
             <CardTitle className="text-lg">Informationen</CardTitle>
           </CardHeader>
           <CardContent>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
               <dt className="text-muted-foreground">ID</dt>
               <dd className="font-mono text-xs">{guest.id}</dd>
               <dt className="text-muted-foreground">Sprache</dt>

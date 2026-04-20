@@ -158,7 +158,7 @@ function Section({
   return (
     <Card className="border-border/70 bg-card/85 backdrop-blur-sm">
       <CardHeader className="border-b border-border/70 pb-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-2.5">
             <Icon className="mt-0.5 h-4 w-4 text-primary-contrast" />
             <div>
@@ -168,7 +168,7 @@ function Section({
               ) : null}
             </div>
           </div>
-          <Button onClick={onSave} disabled={saving} className="min-w-[110px]">
+          <Button onClick={onSave} disabled={saving} className="w-full min-w-[110px] sm:w-auto">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Speichern
           </Button>
@@ -1034,37 +1034,52 @@ export default function TenantSettingsPage() {
                 return (
                   <div
                     key={key}
-                    className="grid items-center gap-3 rounded-lg border border-border/70 bg-background/70 p-3"
-                    style={{ gridTemplateColumns: "130px auto 1fr" }}
+                    className="rounded-lg border border-border/70 bg-background/70 p-3"
                   >
-                    <span className="text-sm font-semibold">{label}</span>
-                    <Toggle
-                      checked={!isClosed}
-                      onChange={(open) => setDayField(key, "closed", !open)}
-                    />
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold">{label}</span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            isClosed
+                              ? "bg-muted text-muted-foreground"
+                              : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
+                          }`}
+                        >
+                          {isClosed ? "Geschlossen" : "Geöffnet"}
+                        </span>
+                        <Toggle
+                          checked={!isClosed}
+                          onChange={(open) => setDayField(key, "closed", !open)}
+                        />
+                      </div>
+                    </div>
+
                     {!isClosed ? (
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2">
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label className="space-y-1">
                           <span className="text-xs text-muted-foreground">Öffnet</span>
                           <input
                             type="time"
                             value={day.open ?? "09:00"}
                             onChange={(event) => setDayField(key, "open", event.target.value)}
-                            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                           />
-                        </div>
-                        <div className="flex items-center gap-2">
+                        </label>
+                        <label className="space-y-1">
                           <span className="text-xs text-muted-foreground">Schließt</span>
                           <input
                             type="time"
                             value={day.close ?? "22:00"}
                             onChange={(event) => setDayField(key, "close", event.target.value)}
-                            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                           />
-                        </div>
+                        </label>
                       </div>
                     ) : (
-                      <span className="text-xs italic text-muted-foreground">Geschlossen</span>
+                      <p className="mt-2 text-xs italic text-muted-foreground">
+                        An diesem Tag geschlossen
+                      </p>
                     )}
                   </div>
                 );

@@ -24,6 +24,8 @@ import {
   Undo2,
   Loader2,
   ExternalLink,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +55,7 @@ export default function AdminLayout({
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatingUserName, setImpersonatingUserName] = useState<string | null>(null);
   const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const normalizedPathname = pathname.replace(/^\/(de|en)(?=\/|$)/, "") || "/";
   const currentRole = adminUser?.role ?? null;
   const defaultRoute = getDefaultAdminRoute(currentRole) ?? "/auth/login";
@@ -84,6 +87,7 @@ export default function AdminLayout({
   useEffect(() => {
     setIsImpersonating(adminImpersonation.isActive());
     setImpersonatingUserName(adminImpersonation.getUserName());
+    setMobileNavOpen(false);
   }, [pathname]);
 
   if (isLoading) {
@@ -98,6 +102,7 @@ export default function AdminLayout({
 
   const handleLogout = () => {
     logout();
+    setMobileNavOpen(false);
     router.push("/auth/login");
   };
 
@@ -165,7 +170,7 @@ export default function AdminLayout({
       <div className="flex flex-1 flex-col">
         <header className="flex h-16 items-center justify-between border-b px-4 md:hidden">
           <span className="text-lg font-bold text-primary-contrast">Admin</span>
-          <nav className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <a
               href={dashboardUrl}
               target="_blank"
@@ -176,25 +181,54 @@ export default function AdminLayout({
             >
               <ExternalLink className="h-5 w-5" />
             </a>
-            {visibleNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "rounded-md p-2",
-                  isNavItemActive(item.href)
-                    ? "bg-primary/10 text-primary-contrast"
-                    : "text-muted-foreground"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-              </Link>
-            ))}
-            <button onClick={handleLogout} className="rounded-md p-2 text-destructive">
-              <LogOut className="h-5 w-5" />
+            <button
+              onClick={() => setMobileNavOpen((current) => !current)}
+              className="rounded-md p-2 text-foreground"
+              aria-label={mobileNavOpen ? "Menü schließen" : "Menü öffnen"}
+              aria-expanded={mobileNavOpen}
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-          </nav>
+          </div>
         </header>
+        {mobileNavOpen ? (
+          <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-b bg-card/95 px-4 py-3 md:hidden">
+            <nav className="flex flex-col gap-1">
+              {visibleNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium",
+                    isNavItemActive(item.href)
+                      ? "bg-primary/10 text-primary-contrast"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+              <a
+                href={dashboardUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center justify-between rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary-contrast"
+              >
+                Restaurant-Dashboard
+                <ExternalLink className="h-4 w-4" />
+              </a>
+              <button
+                onClick={handleLogout}
+                className="mt-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-destructive hover:bg-accent"
+              >
+                <LogOut className="h-4 w-4" />
+                Abmelden
+              </button>
+            </nav>
+          </div>
+        ) : null}
         <main className="flex-1 p-4 md:p-8">
           {isImpersonating ? (
             <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">

@@ -41,15 +41,15 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-8 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight text-foreground">
+        <Link href="/" className="flex min-h-10 min-w-10 items-center gap-2.5 font-bold tracking-tight text-foreground">
           <Logo size="sm" />
           <span className="hidden sm:inline">GastroPilot</span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden flex-1 items-center gap-1 md:flex">
+        <nav className="hidden flex-1 items-center gap-1 lg:flex">
           <Link href="/restaurants" className="rounded-full px-4 py-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground">
             Restaurants
           </Link>
@@ -71,7 +71,7 @@ export function Navbar() {
         </nav>
 
         {/* Desktop Right */}
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           <Link
             href="/fuer-restaurants"
             className="rounded-full px-4 py-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -139,8 +139,8 @@ export function Navbar() {
         </div>
 
         {/* Mobile */}
-        <div className="flex flex-1 items-center justify-end md:hidden">
-          <button className="rounded-[10px] p-2" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menü">
+        <div className="flex flex-1 items-center justify-end lg:hidden">
+          <button className="flex h-10 w-10 items-center justify-center rounded-[10px]" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menü">
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
@@ -148,7 +148,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="border-t md:hidden">
+        <div className="border-t lg:hidden">
           <nav className="flex flex-col px-4 py-3">
             <Link href="/restaurants" className="rounded-[10px] px-3 py-2.5 text-[15px] font-medium" onClick={() => setMobileOpen(false)}>Restaurants</Link>
             <Link href="/fuer-restaurants" className="rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-muted-foreground" onClick={() => setMobileOpen(false)}>Für Restaurants</Link>
