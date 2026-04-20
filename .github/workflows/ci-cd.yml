@@ -3,6 +3,26 @@ name: CI/CD Pipeline
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'i18n/**'
+      - 'lib/**'
+      - 'messages/**'
+      - 'public/**'
+      - 'middleware.ts'
+      - 'next.config.ts'
+      - 'next-env.d.ts'
+      - 'postcss.config.mjs'
+      - 'tailwind.config.ts'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'Dockerfile'
+      - '.github/workflows/ci-cd.yml'
+      - '!**/*.md'
+      - '!**/*.mdx'
+      - '!docs/**'
   push:
     branches: [main]
     paths:
@@ -22,6 +42,9 @@ on:
       - 'package-lock.json'
       - 'Dockerfile'
       - '.github/workflows/ci-cd.yml'
+      - '!**/*.md'
+      - '!**/*.mdx'
+      - '!docs/**'
   workflow_dispatch:
     inputs:
       tag:
@@ -34,7 +57,7 @@ on:
           - demo
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -59,9 +82,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
@@ -79,9 +103,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build application
         run: npm run build

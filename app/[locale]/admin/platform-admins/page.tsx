@@ -72,6 +72,7 @@ export default function AdminPlatformAdminsPage() {
     queryKey: ["admin", "platform-admins"],
     queryFn: () => adminPlatformAdminsApi.list(),
   });
+  const adminList = admins ?? [];
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminPlatformAdminsApi.delete(id),
@@ -114,9 +115,9 @@ export default function AdminPlatformAdminsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Zugangsverwaltung</h1>
-        <Button onClick={() => setShowCreate(true)}>
+        <Button onClick={() => setShowCreate(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Neuer Admin
         </Button>
@@ -133,139 +134,233 @@ export default function AdminPlatformAdminsPage() {
       )}
 
       <div className="mb-2 text-xs text-muted-foreground">
-        Zeile anklicken, um den Benutzer zu bearbeiten.
+        Benutzer bearbeiten, rollenbasiert verwalten und bei Bedarf impersonieren.
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium">Name</th>
-              <th className="px-4 py-3 text-left font-medium">E-Mail</th>
-              <th className="px-4 py-3 text-left font-medium">Rolle</th>
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Letzter Login</th>
-              <th className="px-4 py-3 text-left font-medium">Erstellt</th>
-              <th className="px-4 py-3 text-right font-medium">Aktionen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <tr key={i} className="border-b">
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-32" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-40" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-5 w-16" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-5 w-16" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-24" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-20" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="ml-auto h-4 w-20" />
-                  </td>
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-md border p-4 md:hidden">
+              <Skeleton className="h-5 w-44" />
+              <Skeleton className="mt-2 h-4 w-52" />
+              <Skeleton className="mt-3 h-10 w-full" />
+            </div>
+          ))}
+          <div className="hidden overflow-x-auto rounded-md border md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-medium">Name</th>
+                  <th className="px-4 py-3 text-left font-medium">E-Mail</th>
+                  <th className="px-4 py-3 text-left font-medium">Rolle</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Letzter Login</th>
+                  <th className="px-4 py-3 text-left font-medium">Erstellt</th>
+                  <th className="px-4 py-3 text-right font-medium">Aktionen</th>
                 </tr>
-              ))
-            ) : !admins?.length ? (
-              <tr>
-                <td colSpan={7}>
-                  <EmptyState
-                    icon={ShieldCheck}
-                    title="Keine Admins vorhanden"
-                    description="Erstellen Sie einen neuen Platform-Admin."
-                  />
-                </td>
-              </tr>
-            ) : (
-              admins.map((admin) => (
-                <tr
-                  key={admin.id}
-                  className="cursor-pointer border-b hover:bg-muted/30"
-                  onClick={() => setEditingAdmin(admin)}
-                >
-                  <td className="px-4 py-3 font-medium">
-                    {admin.first_name} {admin.last_name}
-                    {admin.id === adminUser?.id && (
-                      <span className="ml-2 text-xs text-muted-foreground">(Sie)</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{admin.email || "—"}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="secondary">{roleLabel(admin.role)}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={admin.is_active ? "default" : "destructive"}>
-                      {admin.is_active ? "Aktiv" : "Inaktiv"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+              </thead>
+              <tbody>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i} className="border-b">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="ml-auto h-4 w-20" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : adminList.length === 0 ? (
+        <EmptyState
+          icon={ShieldCheck}
+          title="Keine Admins vorhanden"
+          description="Erstellen Sie einen neuen Platform-Admin."
+        />
+      ) : (
+        <>
+          <div className="space-y-3 md:hidden">
+            {adminList.map((admin) => (
+              <div key={admin.id} className="rounded-md border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">
+                      {admin.first_name} {admin.last_name}
+                      {admin.id === adminUser?.id ? (
+                        <span className="ml-1 text-xs text-muted-foreground">(Sie)</span>
+                      ) : null}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{admin.email || "—"}</p>
+                  </div>
+                  <Badge variant={admin.is_active ? "default" : "destructive"}>
+                    {admin.is_active ? "Aktiv" : "Inaktiv"}
+                  </Badge>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{roleLabel(admin.role)}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Letzter Login:{" "}
                     {admin.last_login_at
                       ? new Date(admin.last_login_at).toLocaleString("de-DE")
                       : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {admin.created_at
-                      ? new Date(admin.created_at).toLocaleDateString("de-DE")
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {admin.id !== adminUser?.id && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleImpersonate(admin);
-                            }}
-                            disabled={impersonatingId === admin.id}
-                            title="Impersonieren"
-                          >
-                            {impersonatingId === admin.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <LogIn className="h-4 w-4 text-primary-contrast" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (
-                                confirm(
-                                  `Admin "${admin.first_name} ${admin.last_name}" wirklich löschen?`
-                                )
-                              ) {
-                                deleteMutation.mutate(admin.id);
-                              }
-                            }}
-                            className="text-destructive hover:text-destructive"
-                            title="Löschen"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Erstellt:{" "}
+                  {admin.created_at
+                    ? new Date(admin.created_at).toLocaleDateString("de-DE")
+                    : "—"}
+                </p>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Button variant="outline" size="sm" onClick={() => setEditingAdmin(admin)}>
+                    Bearbeiten
+                  </Button>
+                  {admin.id !== adminUser?.id ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleImpersonate(admin)}
+                      disabled={impersonatingId === admin.id}
+                    >
+                      {impersonatingId === admin.id ? (
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogIn className="mr-1.5 h-4 w-4" />
                       )}
-                    </div>
-                  </td>
+                      Impersonieren
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled>
+                      Impersonieren
+                    </Button>
+                  )}
+                  {admin.id !== adminUser?.id ? (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Admin "${admin.first_name} ${admin.last_name}" wirklich löschen?`
+                          )
+                        ) {
+                          deleteMutation.mutate(admin.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="mr-1.5 h-4 w-4" />
+                      Löschen
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled>
+                      Löschen
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto rounded-md border md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-medium">Name</th>
+                  <th className="px-4 py-3 text-left font-medium">E-Mail</th>
+                  <th className="px-4 py-3 text-left font-medium">Rolle</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Letzter Login</th>
+                  <th className="px-4 py-3 text-left font-medium">Erstellt</th>
+                  <th className="px-4 py-3 text-right font-medium">Aktionen</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {adminList.map((admin) => (
+                  <tr
+                    key={admin.id}
+                    className="cursor-pointer border-b hover:bg-muted/30"
+                    onClick={() => setEditingAdmin(admin)}
+                  >
+                    <td className="px-4 py-3 font-medium">
+                      {admin.first_name} {admin.last_name}
+                      {admin.id === adminUser?.id ? (
+                        <span className="ml-2 text-xs text-muted-foreground">(Sie)</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{admin.email || "—"}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="secondary">{roleLabel(admin.role)}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={admin.is_active ? "default" : "destructive"}>
+                        {admin.is_active ? "Aktiv" : "Inaktiv"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {admin.last_login_at
+                        ? new Date(admin.last_login_at).toLocaleString("de-DE")
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {admin.created_at
+                        ? new Date(admin.created_at).toLocaleDateString("de-DE")
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {admin.id !== adminUser?.id ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleImpersonate(admin);
+                              }}
+                              disabled={impersonatingId === admin.id}
+                              title="Impersonieren"
+                            >
+                              {impersonatingId === admin.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <LogIn className="h-4 w-4 text-primary-contrast" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                if (
+                                  confirm(
+                                    `Admin "${admin.first_name} ${admin.last_name}" wirklich löschen?`
+                                  )
+                                ) {
+                                  deleteMutation.mutate(admin.id);
+                                }
+                              }}
+                              className="text-destructive hover:text-destructive"
+                              title="Löschen"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <EditAdminDialog
         admin={editingAdmin}
