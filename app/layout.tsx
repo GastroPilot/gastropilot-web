@@ -19,6 +19,15 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://gastropilot.de"
   ),
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [{ url: "/icons/icon-192.png", sizes: "192x192" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -35,7 +44,6 @@ export default function RootLayout({
     <html lang="de" className={manrope.variable} suppressHydrationWarning>
       <head>
         <meta name="theme-color" content="#E75E29" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body className="min-h-screen font-sans antialiased">
         <Providers>
