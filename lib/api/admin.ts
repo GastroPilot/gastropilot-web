@@ -36,8 +36,7 @@ export interface AdminReservation {
   end_at: string | null;
   status: string;
   channel: string;
-  special_requests: string | null;
-  notes?: string | null;
+  notes: string | null;
   confirmation_code?: string | null;
   canceled_reason?: string | null;
   created_at: string | null;

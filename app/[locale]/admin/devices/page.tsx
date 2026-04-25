@@ -93,6 +93,7 @@ export default function AdminDevicesPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [shownToken, setShownToken] = useState<string | null>(null);
+  const [shownTenantId, setShownTenantId] = useState<string | null>(null);
   const [shownDeviceName, setShownDeviceName] = useState("");
 
   const [name, setName] = useState("");
@@ -193,11 +194,13 @@ export default function AdminDevicesPage() {
   const closeTokenDialog = () => {
     setTokenDialogOpen(false);
     setShownToken(null);
+    setShownTenantId(null);
     setShownDeviceName("");
   };
 
   const showTokenDialog = (device: DeviceWithToken) => {
     setShownToken(device.device_token);
+    setShownTenantId(device.tenant_id);
     setShownDeviceName(device.name);
     setTokenDialogOpen(true);
   };
@@ -277,6 +280,7 @@ export default function AdminDevicesPage() {
       );
       toast.success("Token erfolgreich neu generiert");
       setShownToken(result.device_token);
+      setShownTenantId(device.tenant_id || selectedRestaurantId);
       setShownDeviceName(device.name);
       setTokenDialogOpen(true);
       await loadDevices(selectedRestaurantId);
@@ -289,14 +293,22 @@ export default function AdminDevicesPage() {
     }
   };
 
-  const copyToken = async () => {
-    if (!shownToken) return;
+  const copyValue = async (value: string | null, successMessage: string, errorMessage: string) => {
+    if (!value) return;
     try {
-      await navigator.clipboard.writeText(shownToken);
-      toast.success("Token kopiert");
+      await navigator.clipboard.writeText(value);
+      toast.success(successMessage);
     } catch {
-      toast.error("Token konnte nicht kopiert werden");
+      toast.error(errorMessage);
     }
+  };
+
+  const copyToken = async () => {
+    await copyValue(shownToken, "Token kopiert", "Token konnte nicht kopiert werden");
+  };
+
+  const copyTenantId = async () => {
+    await copyValue(shownTenantId, "Tenant-ID kopiert", "Tenant-ID konnte nicht kopiert werden");
   };
 
   return (
@@ -610,29 +622,52 @@ export default function AdminDevicesPage() {
               Gerät: <span className="font-semibold text-foreground">{shownDeviceName || "—"}</span>
             </div>
 
-            <div className="rounded-lg border border-border/70 bg-background/70 p-4">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Geräte-Token
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border/70 bg-background/70 p-4">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tenant-ID
+                </div>
+                <div className="overflow-x-auto rounded-md border border-border/70 bg-card/70">
+                  <code className="block min-w-max whitespace-nowrap px-3 py-2 font-mono text-[11px] text-foreground">
+                    {shownTenantId || "—"}
+                  </code>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={copyTenantId}
+                  disabled={!shownTenantId}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Tenant-ID kopieren
+                </Button>
               </div>
-              <div className="overflow-x-auto rounded-md border border-border/70 bg-card/70">
-                <code className="block min-w-max whitespace-nowrap px-3 py-2 font-mono text-[11px] text-foreground">
-                  {shownToken || "—"}
-                </code>
+
+              <div className="rounded-lg border border-border/70 bg-background/70 p-4">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Geräte-Token
+                </div>
+                <div className="overflow-x-auto rounded-md border border-border/70 bg-card/70">
+                  <code className="block min-w-max whitespace-nowrap px-3 py-2 font-mono text-[11px] text-foreground">
+                    {shownToken || "—"}
+                  </code>
+                </div>
+                <Button variant="outline" size="sm" className="mt-3" onClick={copyToken} disabled={!shownToken}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Token kopieren
+                </Button>
               </div>
             </div>
 
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-200">
-              Wichtig: Token sofort speichern oder direkt im KDS-Gerät hinterlegen.
+              Wichtig: Tenant-ID und Token sofort speichern oder direkt im KDS-Gerät hinterlegen.
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={closeTokenDialog}>
               Schließen
-            </Button>
-            <Button onClick={copyToken} disabled={!shownToken}>
-              <Copy className="mr-2 h-4 w-4" />
-              Token kopieren
             </Button>
           </DialogFooter>
         </DialogContent>

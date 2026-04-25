@@ -66,9 +66,9 @@ function ReservationCard({ reservation }: { reservation: Reservation }) {
                 {reservation.party_size} {reservation.party_size === 1 ? "Person" : "Personen"}
               </span>
             </div>
-            {reservation.special_requests && (
+            {reservation.notes && (
               <p className="text-sm text-muted-foreground">
-                Wünsche: {reservation.special_requests}
+                Notiz: {reservation.notes}
               </p>
             )}
             <p className="text-xs text-muted-foreground">

@@ -75,7 +75,7 @@ export function BookingWidget({ slug, maxPartySize = 12, className }: BookingWid
         guest_name: guestName,
         guest_email: guestEmail,
         guest_phone: guestPhone || undefined,
-        special_requests: specialRequests || undefined,
+        notes: specialRequests || undefined,
       });
       setConfirmationCode(result.confirmation_code);
       setSuccess(true);
