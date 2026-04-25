@@ -147,13 +147,13 @@ export default function ReservationDetailPage() {
               </div>
             )}
 
-            {reservation.special_requests && (
+            {reservation.notes && (
               <div className="rounded-md border p-3">
                 <div className="mb-1 flex items-center gap-1 text-xs font-medium text-muted-foreground">
                   <MessageSquare className="h-3 w-3" />
-                  Sonderwünsche
+                  Notiz
                 </div>
-                <p className="text-sm">{reservation.special_requests}</p>
+                <p className="text-sm">{reservation.notes}</p>
               </div>
             )}
           </CardContent>

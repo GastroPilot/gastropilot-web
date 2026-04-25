@@ -19,7 +19,7 @@ export interface CreateReservationRequest {
   guest_email: string;
   guest_phone?: string;
   allergen_ids?: AllergenId[];
-  special_requests?: string;
+  notes?: string;
 }
 
 export interface Reservation {
@@ -33,7 +33,7 @@ export interface Reservation {
   guest_email: string;
   guest_phone: string | null;
   allergen_ids: AllergenId[];
-  special_requests: string | null;
+  notes: string | null;
   status: "pending" | "confirmed" | "completed" | "cancelled" | "canceled" | "no_show";
   confirmation_code: string;
   created_at: string;
@@ -57,7 +57,7 @@ export const reservationsApi = {
       guest_name: data.guest_name,
       guest_email: data.guest_email,
       guest_phone: data.guest_phone || "",
-      special_requests: data.special_requests,
+      notes: data.notes,
       channel: "web",
     };
     return api.post<Reservation>(`/public/restaurants/${slug}/reservations`, body);
