@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Loader2,
@@ -121,6 +121,7 @@ export default function AdminMenuPage() {
   const [itemIsAvailable, setItemIsAvailable] = useState(true);
   const [itemSortOrder, setItemSortOrder] = useState(0);
   const [itemAllergens, setItemAllergens] = useState<string[]>([]);
+  const triedAutoSwitchOnEmptyMenu = useRef(false);
 
   const selectedRestaurant = useMemo(
     () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
@@ -210,20 +211,74 @@ export default function AdminMenuPage() {
     try {
       const accessToken = await getTenantAccessToken(restaurantId);
       const requestOptions = withOptionalAccessToken(accessToken);
-      const [allCategories, allItems] = await Promise.all([
-        menuManagementApi.listCategories(requestOptions),
-        menuManagementApi.listItems({}, requestOptions),
-      ]);
+      const loadForOptions = async (
+        targetRestaurantId: string,
+        options: { accessToken?: string }
+      ) =>
+        Promise.all([
+          menuManagementApi.listCategories({ restaurant_id: targetRestaurantId }, options),
+          menuManagementApi.listItems({ restaurant_id: targetRestaurantId }, options),
+        ]);
 
-      setCategories(sortCategories(allCategories));
-      setItems(sortItems(allItems));
+      let [allCategories, allItems] = await loadForOptions(restaurantId, requestOptions);
+
+      // Fallback for platform-admin sessions where impersonation token context
+      // may not be applied consistently in local dev.
+      if (accessToken && allCategories.length === 0 && allItems.length === 0) {
+        [allCategories, allItems] = await loadForOptions(restaurantId, {});
+      }
+
+      const tenantCategories = allCategories.filter((category) => category.tenant_id === restaurantId);
+      const tenantItems = allItems.filter((item) => item.tenant_id === restaurantId);
+
+      if (
+        !triedAutoSwitchOnEmptyMenu.current &&
+        tenantCategories.length === 0 &&
+        tenantItems.length === 0 &&
+        restaurants.length > 1
+      ) {
+        triedAutoSwitchOnEmptyMenu.current = true;
+        for (const candidate of restaurants) {
+          if (candidate.id === restaurantId) continue;
+          try {
+            const candidateAccessToken = await getTenantAccessToken(candidate.id);
+            const candidateOptions = withOptionalAccessToken(candidateAccessToken);
+            let [candidateCategories, candidateItems] = await loadForOptions(
+              candidate.id,
+              candidateOptions
+            );
+            if (
+              candidateAccessToken &&
+              candidateCategories.length === 0 &&
+              candidateItems.length === 0
+            ) {
+              [candidateCategories, candidateItems] = await loadForOptions(candidate.id, {});
+            }
+            const hasCandidateData =
+              candidateCategories.some((category) => category.tenant_id === candidate.id) ||
+              candidateItems.some((item) => item.tenant_id === candidate.id);
+            if (hasCandidateData) {
+              setSelectedRestaurantId(candidate.id);
+              toast.info(
+                `Das ausgewählte Restaurant hat keine Menüdaten. Wechsel zu "${candidate.name}".`
+              );
+              return;
+            }
+          } catch {
+            // Ignore candidate errors and continue.
+          }
+        }
+      }
+
+      setCategories(sortCategories(tenantCategories));
+      setItems(sortItems(tenantItems));
     } catch (error) {
       console.error("Fehler beim Laden des Menüs:", error);
       toast.error("Menüdaten konnten nicht geladen werden");
     } finally {
       setLoadingMenu(false);
     }
-  }, [getTenantAccessToken]);
+  }, [getTenantAccessToken, restaurants]);
 
   useEffect(() => {
     loadRestaurants();
@@ -240,6 +295,13 @@ export default function AdminMenuPage() {
       setSelectedCategoryId(null);
     }
   }, [categories, selectedCategoryId]);
+
+  useEffect(() => {
+    if (!itemCategoryId) return;
+    if (!categories.some((category) => category.id === itemCategoryId)) {
+      setItemCategoryId(null);
+    }
+  }, [categories, itemCategoryId]);
 
   const openCategoryDialog = (category: MenuCategory | null = null) => {
     if (!canManageMenu) {
@@ -379,6 +441,10 @@ export default function AdminMenuPage() {
 
     if (!itemName.trim() || itemPrice <= 0) {
       toast.error("Bitte Name und gültigen Preis angeben");
+      return;
+    }
+    if (itemCategoryId && !categories.some((category) => category.id === itemCategoryId)) {
+      toast.error("Bitte eine gültige Kategorie auswählen");
       return;
     }
 
