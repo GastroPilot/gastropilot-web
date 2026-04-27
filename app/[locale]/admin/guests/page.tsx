@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { adminGuestsApi } from "@/lib/api/admin";
+import { listAccessibleRestaurants } from "@/lib/admin-tenant-context";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,13 +17,27 @@ import { toast } from "sonner";
 export default function AdminGuestsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
+
+  const { data: restaurants = [], isLoading: isLoadingRestaurants } = useQuery({
+    queryKey: ["admin", "guests", "restaurants", adminRole],
+    queryFn: () => listAccessibleRestaurants(adminRole),
+    enabled: !!adminRole,
+  });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "guests", page, search],
-    queryFn: () => adminGuestsApi.list({ page, per_page: 50, search }),
+    queryKey: ["admin", "guests", page, search, selectedRestaurantId],
+    queryFn: () =>
+      adminGuestsApi.list({
+        page,
+        per_page: 50,
+        search,
+        restaurant_id: selectedRestaurantId || undefined,
+      }),
   });
 
   const deleteMutation = useMutation({
@@ -46,7 +62,33 @@ export default function AdminGuestsPage() {
     <div>
       <h1 className="mb-6 text-2xl font-bold">Gäste-Verwaltung</h1>
 
-      <form onSubmit={handleSearch} className="mb-4 flex flex-col gap-2 sm:flex-row">
+      <form
+        onSubmit={handleSearch}
+        className="mb-4 grid gap-2 lg:grid-cols-[300px_1fr_auto]"
+      >
+        <div className="space-y-1">
+          <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Restaurant
+          </label>
+          <select
+            value={selectedRestaurantId}
+            onChange={(e) => {
+              setSelectedRestaurantId(e.target.value);
+              setPage(1);
+            }}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            disabled={isLoadingRestaurants}
+          >
+            <option value="">
+              {isLoadingRestaurants ? "Restaurants laden..." : "Alle Restaurants"}
+            </option>
+            {restaurants.map((restaurant) => (
+              <option key={restaurant.id} value={restaurant.id}>
+                {restaurant.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -56,7 +98,7 @@ export default function AdminGuestsPage() {
             className="pl-10"
           />
         </div>
-        <Button type="submit" variant="outline" className="w-full sm:w-auto">
+        <Button type="submit" variant="outline" className="w-full self-end lg:w-auto">
           Suchen
         </Button>
       </form>
