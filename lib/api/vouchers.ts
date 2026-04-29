@@ -24,6 +24,7 @@ export interface Voucher {
   valid_until: string | null;
   max_uses: number | null;
   used_count: number;
+  remaining_value: number | null;
   min_order_value: number | null;
   is_active: boolean;
   created_by_user_id: string | null;

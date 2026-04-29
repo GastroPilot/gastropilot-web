@@ -142,11 +142,24 @@ function getVoucherStatus(voucher: Voucher, todayDate: string): VoucherStatus {
 
   if (validFrom && todayDate < validFrom) return "scheduled";
   if (validUntil && todayDate > validUntil) return "expired";
+  if (voucher.kind === "voucher") {
+    const remaining = voucher.remaining_value ?? voucher.value;
+    if (remaining <= 0) return "exhausted";
+    return "active";
+  }
   if (voucher.max_uses !== null && voucher.max_uses > 0 && voucher.used_count >= voucher.max_uses) {
     return "exhausted";
   }
 
   return "active";
+}
+
+function getVoucherRemainingAmount(voucher: Voucher): number {
+  if (voucher.kind !== "voucher") return voucher.value;
+  if (voucher.remaining_value === null || voucher.remaining_value === undefined) {
+    return voucher.value;
+  }
+  return Math.max(0, voucher.remaining_value);
 }
 
 function statusLabel(status: VoucherStatus): string {
@@ -773,10 +786,15 @@ export default function AdminMenuDiscountsPage() {
     return (
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {entries.map(({ voucher, status }) => {
+          const remainingAmount = getVoucherRemainingAmount(voucher);
           const usagePercent =
-            voucher.max_uses && voucher.max_uses > 0
-              ? Math.min(100, Math.round((voucher.used_count / voucher.max_uses) * 100))
-              : 0;
+            voucher.kind === "voucher"
+              ? voucher.value > 0
+                ? Math.min(100, Math.round(((voucher.value - remainingAmount) / voucher.value) * 100))
+                : 0
+              : voucher.max_uses && voucher.max_uses > 0
+                ? Math.min(100, Math.round((voucher.used_count / voucher.max_uses) * 100))
+                : 0;
           return (
             <button
               key={voucher.id}
@@ -833,11 +851,12 @@ export default function AdminMenuDiscountsPage() {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Nutzung</span>
                   <span>
-                    {voucher.used_count}
-                    {voucher.max_uses !== null ? ` / ${voucher.max_uses}` : ""}
+                    {voucher.kind === "voucher"
+                      ? `${formatCurrency(remainingAmount)} / ${formatCurrency(voucher.value)}`
+                      : `${voucher.used_count}${voucher.max_uses !== null ? ` / ${voucher.max_uses}` : ""}`}
                   </span>
                 </div>
-                {voucher.max_uses !== null ? (
+                {(voucher.kind === "voucher" || voucher.max_uses !== null) ? (
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-primary"
@@ -1359,7 +1378,13 @@ export default function AdminMenuDiscountsPage() {
                     <p>
                       Gültig: {voucherValidFrom ? formatDate(voucherValidFrom) : "-"} bis {voucherValidUntil ? formatDate(voucherValidUntil) : "-"}
                     </p>
-                    <p>Einlösungen: {voucherScope === "individual" ? "1 (einmalig)" : "gemäß Einstellung"}</p>
+                    <p>
+                      Einlösung: {voucherScope === "individual" && voucherKind === "voucher"
+                        ? "mehrfach bis Restwert = 0"
+                        : voucherScope === "individual"
+                          ? "1 (einmalig)"
+                          : "gemäß Einstellung"}
+                    </p>
                     <Button
                       type="button"
                       variant="outline"
