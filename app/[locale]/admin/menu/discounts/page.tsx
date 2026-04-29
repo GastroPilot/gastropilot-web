@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2,
   Plus,
@@ -11,6 +11,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import type { AdminTenant } from "@/lib/api/admin";
 import {
@@ -18,6 +19,8 @@ import {
   type Voucher,
   type VoucherAppliesTo,
   type VoucherDiscountType,
+  type VoucherKind,
+  type VoucherScope,
   type VoucherUsage,
 } from "@/lib/api/vouchers";
 import {
@@ -176,6 +179,66 @@ function discountLabel(voucher: Voucher): string {
   return `${formatCurrency(voucher.value)} Rabatt`;
 }
 
+function offerKindLabel(kind: VoucherKind): string {
+  return kind === "voucher" ? "Gutschein" : "Rabatt";
+}
+
+function isVoucherOffer(voucher: Voucher): boolean {
+  return voucher.kind === "voucher";
+}
+
+function offerScopeLabel(scope: VoucherScope): string {
+  return scope === "individual" ? "Individuell" : "Öffentlich";
+}
+
+function containsUuidToken(value: string): boolean {
+  const uuidPattern =
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  return uuidPattern.test(value);
+}
+
+function generateUuidToken(): string {
+  if (
+    typeof globalThis !== "undefined" &&
+    globalThis.crypto &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return globalThis.crypto.randomUUID().toUpperCase();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  }).toUpperCase();
+}
+
+function buildVoucherQrPayload(voucher: {
+  code: string;
+  name: string | null;
+  kind: VoucherKind;
+  scope: VoucherScope;
+  type: VoucherDiscountType;
+  value: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  max_uses: number | null;
+}): string {
+  const payload = {
+    type: "gastropilot-voucher",
+    version: 1,
+    code: voucher.code,
+    name: voucher.name,
+    kind: voucher.kind,
+    scope: voucher.scope,
+    discount_type: voucher.type,
+    discount_value: voucher.value,
+    valid_from: toDateOnly(voucher.valid_from),
+    valid_until: toDateOnly(voucher.valid_until),
+    max_uses: voucher.max_uses,
+  };
+  return JSON.stringify(payload);
+}
+
 function appliesToLabel(value: VoucherAppliesTo): string {
   return SERVICE_TYPE_OPTIONS.find((entry) => entry.value === value)?.label ?? "Alle Services";
 }
@@ -208,6 +271,8 @@ export default function AdminMenuDiscountsPage() {
   const [voucherName, setVoucherName] = useState("");
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherDescription, setVoucherDescription] = useState("");
+  const [voucherKind, setVoucherKind] = useState<VoucherKind>("discount");
+  const [voucherScope, setVoucherScope] = useState<VoucherScope>("public");
   const [voucherType, setVoucherType] = useState<VoucherDiscountType>("fixed");
   const [voucherValue, setVoucherValue] = useState("");
   const [voucherAppliesTo, setVoucherAppliesTo] = useState<VoucherAppliesTo>("all");
@@ -222,6 +287,7 @@ export default function AdminMenuDiscountsPage() {
 
   const [usageLoading, setUsageLoading] = useState(false);
   const [voucherUsage, setVoucherUsage] = useState<VoucherUsage[]>([]);
+  const qrPreviewContainerRef = useRef<HTMLDivElement | null>(null);
 
   const todayDate = useMemo(() => getTodayDateKey(), []);
 
@@ -276,6 +342,44 @@ export default function AdminMenuDiscountsPage() {
       );
     });
   }, [searchQuery, statusFilter, typeFilter, vouchersWithStatus]);
+
+  const groupedFilteredVouchers = useMemo(() => {
+    const vouchersOnly = filteredVouchers.filter(({ voucher }) => isVoucherOffer(voucher));
+    const discountsOnly = filteredVouchers.filter(({ voucher }) => !isVoucherOffer(voucher));
+    return { vouchersOnly, discountsOnly };
+  }, [filteredVouchers]);
+
+  const voucherQrPreview = useMemo(() => {
+    const normalizedCode = normalizeVoucherCode(voucherCode) || generateAutoCode(voucherName);
+    if (!normalizedCode) return "";
+    const parsedValue = parseNumberInput(voucherValue) ?? 0;
+    return buildVoucherQrPayload({
+      code: normalizedCode,
+      name: voucherName.trim() || null,
+      kind: voucherKind,
+      scope: voucherScope,
+      type: voucherType,
+      value: parsedValue,
+      valid_from: voucherValidFrom || null,
+      valid_until: voucherValidUntil || null,
+      max_uses:
+        voucherScope === "individual"
+          ? 1
+          : parseNumberInput(voucherMaxUses) === null
+            ? null
+            : Math.trunc(parseNumberInput(voucherMaxUses) || 0),
+    });
+  }, [
+    voucherCode,
+    voucherKind,
+    voucherScope,
+    voucherMaxUses,
+    voucherName,
+    voucherType,
+    voucherValidFrom,
+    voucherValidUntil,
+    voucherValue,
+  ]);
 
   const loadRestaurants = useCallback(async () => {
     if (!adminRole) {
@@ -383,7 +487,7 @@ export default function AdminMenuDiscountsPage() {
     setVoucherTimeUntil("14:00");
   };
 
-  const openDialog = (voucher: Voucher | null = null) => {
+  const openDialog = (voucher: Voucher | null = null, createKind: VoucherKind = "discount") => {
     if (!canManageVouchers) {
       toast.error("Keine Berechtigung zum Bearbeiten von Gutscheinen und Rabatten");
       return;
@@ -396,6 +500,8 @@ export default function AdminMenuDiscountsPage() {
       setVoucherName(voucher.name ?? "");
       setVoucherCode(voucher.code);
       setVoucherDescription(voucher.description ?? "");
+      setVoucherKind(voucher.kind ?? "discount");
+      setVoucherScope(voucher.scope ?? "public");
       setVoucherType(voucher.type);
       setVoucherValue(String(voucher.value));
       setVoucherAppliesTo(voucher.applies_to ?? "all");
@@ -412,8 +518,11 @@ export default function AdminMenuDiscountsPage() {
       loadVoucherUsage(voucher.id);
     } else {
       setVoucherName("");
-      setVoucherCode("");
+      const defaultScope: VoucherScope = createKind === "voucher" ? "individual" : "public";
+      setVoucherCode(defaultScope === "individual" ? `IND-${generateUuidToken()}` : "");
       setVoucherDescription("");
+      setVoucherKind(createKind);
+      setVoucherScope(defaultScope);
       setVoucherType("fixed");
       setVoucherValue("");
       setVoucherAppliesTo("all");
@@ -422,7 +531,7 @@ export default function AdminMenuDiscountsPage() {
       setVoucherTimeUntil("");
       setVoucherValidFrom("");
       setVoucherValidUntil("");
-      setVoucherMaxUses("");
+      setVoucherMaxUses(defaultScope === "individual" ? "1" : "");
       setVoucherMinOrderValue("");
       setVoucherIsActive(true);
     }
@@ -446,6 +555,10 @@ export default function AdminMenuDiscountsPage() {
       toast.error("Prozent-Rabatte dürfen maximal 100% betragen");
       return null;
     }
+    if (voucherKind === "voucher" && voucherType === "percentage") {
+      toast.error("Gutscheine unterstützen nur feste EUR-Werte");
+      return null;
+    }
 
     if (voucherValidFrom && voucherValidUntil && voucherValidUntil < voucherValidFrom) {
       toast.error("'Gültig bis' darf nicht vor 'Gültig von' liegen");
@@ -453,7 +566,10 @@ export default function AdminMenuDiscountsPage() {
     }
 
     const parsedMaxUses = parseNumberInput(voucherMaxUses);
+    const isIndividual = voucherScope === "individual";
+    const requiresSingleUse = isIndividual;
     if (
+      !requiresSingleUse &&
       voucherMaxUses.trim() &&
       (parsedMaxUses === null || !Number.isInteger(parsedMaxUses) || parsedMaxUses < 1)
     ) {
@@ -482,11 +598,15 @@ export default function AdminMenuDiscountsPage() {
 
     let normalizedCode = normalizeVoucherCode(voucherCode);
     if (!normalizedCode) {
-      normalizedCode = generateAutoCode(voucherName);
+      normalizedCode = isIndividual ? `IND-${generateUuidToken()}` : generateAutoCode(voucherName);
     }
 
     if (normalizedCode.length < 4) {
       toast.error("Der Code muss mindestens 4 Zeichen enthalten");
+      return null;
+    }
+    if (isIndividual && !containsUuidToken(normalizedCode)) {
+      toast.error("Individuelle Angebote brauchen einen UUID-Code.");
       return null;
     }
 
@@ -496,6 +616,8 @@ export default function AdminMenuDiscountsPage() {
       code: normalizedCode,
       name: voucherName.trim(),
       description: voucherDescription.trim() || null,
+      kind: voucherKind,
+      scope: voucherScope,
       type: voucherType,
       value: parsedValue,
       applies_to: voucherAppliesTo,
@@ -504,7 +626,12 @@ export default function AdminMenuDiscountsPage() {
       valid_time_until: voucherTimeUntil || null,
       valid_from: voucherValidFrom || null,
       valid_until: voucherValidUntil || null,
-      max_uses: parsedMaxUses === null ? null : Math.trunc(parsedMaxUses),
+      max_uses:
+        requiresSingleUse
+          ? 1
+          : parsedMaxUses === null
+            ? null
+            : Math.trunc(parsedMaxUses),
       min_order_value: parsedMinOrderValue,
       is_active: voucherIsActive,
     };
@@ -513,6 +640,8 @@ export default function AdminMenuDiscountsPage() {
     voucherCode,
     voucherDescription,
     voucherIsActive,
+    voucherKind,
+    voucherScope,
     voucherMaxUses,
     voucherMinOrderValue,
     voucherName,
@@ -545,7 +674,7 @@ export default function AdminMenuDiscountsPage() {
 
       if (editingVoucher) {
         await voucherManagementApi.update(editingVoucher.id, payload, requestOptions);
-        toast.success("Gutschein/Rabatt aktualisiert");
+        toast.success(`${offerKindLabel(payload.kind)} aktualisiert`);
       } else {
         await voucherManagementApi.create(
           {
@@ -554,7 +683,7 @@ export default function AdminMenuDiscountsPage() {
           },
           requestOptions
         );
-        toast.success("Gutschein/Rabatt erstellt");
+        toast.success(`${offerKindLabel(payload.kind)} erstellt`);
       }
 
       setDialogOpen(false);
@@ -573,7 +702,11 @@ export default function AdminMenuDiscountsPage() {
       return;
     }
 
-    if (!confirm(`Gutschein/Rabatt "${voucher.name ?? voucher.code}" wirklich löschen?`)) {
+    if (
+      !confirm(
+        `${offerKindLabel(voucher.kind)} "${voucher.name ?? voucher.code}" wirklich löschen?`
+      )
+    ) {
       return;
     }
 
@@ -581,7 +714,7 @@ export default function AdminMenuDiscountsPage() {
     try {
       const accessToken = await getTenantAccessToken(selectedRestaurantId);
       await voucherManagementApi.delete(voucher.id, withOptionalAccessToken(accessToken));
-      toast.success("Gutschein/Rabatt gelöscht");
+      toast.success(`${offerKindLabel(voucher.kind)} gelöscht`);
       setDialogOpen(false);
       await loadVouchers(selectedRestaurantId);
     } catch (error) {
@@ -590,6 +723,134 @@ export default function AdminMenuDiscountsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDownloadVoucherQr = useCallback(() => {
+    if (!voucherQrPreview) {
+      toast.error("QR-Code ist noch nicht verfügbar");
+      return;
+    }
+    const svgElement = qrPreviewContainerRef.current?.querySelector("svg");
+    if (!svgElement) {
+      toast.error("QR-Code konnte nicht exportiert werden");
+      return;
+    }
+    const serializer = new XMLSerializer();
+    const svgMarkup = serializer.serializeToString(svgElement);
+    const blob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const fallbackCode = normalizeVoucherCode(voucherCode) || generateAutoCode(voucherName);
+    link.href = url;
+    link.download = `voucher-${fallbackCode.toLowerCase()}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [voucherCode, voucherName, voucherQrPreview]);
+
+  const renderVoucherCards = (
+    entries: Array<{ voucher: Voucher; status: VoucherStatus }>,
+    emptyText: string
+  ) => {
+    if (loadingVouchers) {
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-48 rounded-xl" />
+          ))}
+        </div>
+      );
+    }
+    if (entries.length === 0) {
+      return (
+        <div className="rounded-xl border border-dashed border-border p-10 text-center">
+          <p className="font-medium text-foreground">Keine passenden Aktionen gefunden</p>
+          <p className="mt-1 text-sm text-muted-foreground">{emptyText}</p>
+        </div>
+      );
+    }
+    return (
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {entries.map(({ voucher, status }) => {
+          const usagePercent =
+            voucher.max_uses && voucher.max_uses > 0
+              ? Math.min(100, Math.round((voucher.used_count / voucher.max_uses) * 100))
+              : 0;
+          return (
+            <button
+              key={voucher.id}
+              type="button"
+              onClick={() => openDialog(voucher)}
+              disabled={!canManageVouchers}
+              className="group rounded-xl border border-border/80 bg-background/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold leading-tight">{voucher.name || "Ohne Titel"}</p>
+                  <p className="mt-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                    {voucher.code}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className={statusBadgeClass(status)}>{statusLabel(status)}</Badge>
+                  <Badge variant="outline">{offerKindLabel(voucher.kind)}</Badge>
+                  <Badge variant="outline">{offerScopeLabel(voucher.scope)}</Badge>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <Badge variant="secondary">
+                  {voucher.type === "percentage" ? "Prozent" : "Fixbetrag"}
+                </Badge>
+                <span className="text-sm font-semibold text-foreground">{discountLabel(voucher)}</span>
+              </div>
+
+              {voucher.description ? (
+                <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{voucher.description}</p>
+              ) : null}
+
+              <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                <p>
+                  Einsatz: {appliesToLabel(voucher.applies_to)} | {weekdaysSummary(voucher.valid_weekdays)}
+                </p>
+                <p>
+                  Zeitfenster: {voucher.valid_time_from && voucher.valid_time_until
+                    ? `${toTimeDisplay(voucher.valid_time_from)} - ${toTimeDisplay(voucher.valid_time_until)}`
+                    : "Ganztägig"}
+                </p>
+                <p>
+                  Gültig: {formatDate(voucher.valid_from)} bis {formatDate(voucher.valid_until)}
+                </p>
+                <p>
+                  Mindestbestellwert: {voucher.min_order_value !== null
+                    ? formatCurrency(voucher.min_order_value)
+                    : "Keiner"}
+                </p>
+              </div>
+
+              <div className="mt-3 border-t border-border/80 pt-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Nutzung</span>
+                  <span>
+                    {voucher.used_count}
+                    {voucher.max_uses !== null ? ` / ${voucher.max_uses}` : ""}
+                  </span>
+                </div>
+                {voucher.max_uses !== null ? (
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${usagePercent}%` }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -615,11 +876,18 @@ export default function AdminMenuDiscountsPage() {
 
               <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                 <Button
-                  onClick={() => openDialog(null)}
+                  onClick={() => openDialog(null, "voucher")}
                   disabled={!selectedRestaurantId || loadingVouchers || !canManageVouchers}
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  Gutschein/Rabatt anlegen
+                  Gutschein anlegen
+                </Button>
+                <Button
+                  onClick={() => openDialog(null, "discount")}
+                  disabled={!selectedRestaurantId || loadingVouchers || !canManageVouchers}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Rabatt anlegen
                 </Button>
               </div>
             </div>
@@ -753,121 +1021,59 @@ export default function AdminMenuDiscountsPage() {
         ) : null}
 
         {selectedRestaurant ? (
-          <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-xl">
-                  Gutschein- und Rabattaktionen
-                  <span className="ml-2 text-base font-medium text-muted-foreground">
-                    ({filteredVouchers.length})
-                  </span>
-                </CardTitle>
-                {loadingVouchers ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : null}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loadingVouchers ? (
-                <div className="grid gap-3 md:grid-cols-2">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <Skeleton key={index} className="h-48 rounded-xl" />
-                  ))}
+          <div className="space-y-4">
+            <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">
+                    Gutscheine
+                    <span className="ml-2 text-base font-medium text-muted-foreground">
+                      ({groupedFilteredVouchers.vouchersOnly.length})
+                    </span>
+                  </CardTitle>
+                  {loadingVouchers ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : null}
                 </div>
-              ) : filteredVouchers.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border p-10 text-center">
-                  <p className="font-medium text-foreground">Keine passenden Aktionen gefunden</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {searchQuery || statusFilter !== "all" || typeFilter !== "all"
-                      ? "Filter anpassen."
-                      : canManageVouchers
-                        ? "Legen Sie den ersten Gutschein oder Rabatt an."
-                        : "Für dieses Restaurant sind noch keine Aktionen vorhanden."}
-                  </p>
+              </CardHeader>
+              <CardContent>
+                {renderVoucherCards(
+                  groupedFilteredVouchers.vouchersOnly,
+                  searchQuery || statusFilter !== "all" || typeFilter !== "all"
+                    ? "Filter anpassen."
+                    : canManageVouchers
+                      ? "Legen Sie den ersten Gutschein an."
+                      : "Für dieses Restaurant sind noch keine Gutscheine vorhanden."
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70 bg-card/80 backdrop-blur-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">
+                    Rabatte
+                    <span className="ml-2 text-base font-medium text-muted-foreground">
+                      ({groupedFilteredVouchers.discountsOnly.length})
+                    </span>
+                  </CardTitle>
+                  {loadingVouchers ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : null}
                 </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {filteredVouchers.map(({ voucher, status }) => {
-                    const usagePercent =
-                      voucher.max_uses && voucher.max_uses > 0
-                        ? Math.min(100, Math.round((voucher.used_count / voucher.max_uses) * 100))
-                        : 0;
-                    return (
-                      <button
-                        key={voucher.id}
-                        type="button"
-                        onClick={() => openDialog(voucher)}
-                        disabled={!canManageVouchers}
-                        className="group rounded-xl border border-border/80 bg-background/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold leading-tight">{voucher.name || "Ohne Titel"}</p>
-                            <p className="mt-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">
-                              {voucher.code}
-                            </p>
-                          </div>
-                          <Badge className={statusBadgeClass(status)}>{statusLabel(status)}</Badge>
-                        </div>
-
-                        <div className="mt-3 flex items-center gap-2">
-                          <Badge variant="secondary">
-                            {voucher.type === "percentage" ? "Prozent" : "Fixbetrag"}
-                          </Badge>
-                          <span className="text-sm font-semibold text-foreground">
-                            {discountLabel(voucher)}
-                          </span>
-                        </div>
-
-                        {voucher.description ? (
-                          <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                            {voucher.description}
-                          </p>
-                        ) : null}
-
-                        <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-                          <p>
-                            Einsatz: {appliesToLabel(voucher.applies_to)} | {weekdaysSummary(voucher.valid_weekdays)}
-                          </p>
-                          <p>
-                            Zeitfenster: {voucher.valid_time_from && voucher.valid_time_until
-                              ? `${toTimeDisplay(voucher.valid_time_from)} - ${toTimeDisplay(voucher.valid_time_until)}`
-                              : "Ganztägig"}
-                          </p>
-                          <p>
-                            Gültig: {formatDate(voucher.valid_from)} bis {formatDate(voucher.valid_until)}
-                          </p>
-                          <p>
-                            Mindestbestellwert: {voucher.min_order_value !== null
-                              ? formatCurrency(voucher.min_order_value)
-                              : "Keiner"}
-                          </p>
-                        </div>
-
-                        <div className="mt-3 border-t border-border/80 pt-3">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Nutzung</span>
-                            <span>
-                              {voucher.used_count}
-                              {voucher.max_uses !== null ? ` / ${voucher.max_uses}` : ""}
-                            </span>
-                          </div>
-                          {voucher.max_uses !== null ? (
-                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className="h-full rounded-full bg-primary"
-                                style={{ width: `${usagePercent}%` }}
-                              />
-                            </div>
-                          ) : null}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                {renderVoucherCards(
+                  groupedFilteredVouchers.discountsOnly,
+                  searchQuery || statusFilter !== "all" || typeFilter !== "all"
+                    ? "Filter anpassen."
+                    : canManageVouchers
+                      ? "Legen Sie den ersten Rabatt an."
+                      : "Für dieses Restaurant sind noch keine Rabatte vorhanden."
+                )}
+              </CardContent>
+            </Card>
+          </div>
         ) : null}
       </div>
 
@@ -881,11 +1087,14 @@ export default function AdminMenuDiscountsPage() {
         >
           <DialogHeader>
             <DialogTitle>
-              {editingVoucher ? "Gutschein/Rabatt bearbeiten" : "Neuer Gutschein/Rabatt"}
+              {editingVoucher
+                ? `${offerKindLabel(voucherKind)} bearbeiten`
+                : `Neuer ${offerKindLabel(voucherKind)}`}
             </DialogTitle>
             <DialogDescription>
-              Definieren Sie Bedingungen wie Mittagstisch, nur Sonntag oder ein tägliches
-              Zeitfenster.
+              {voucherKind === "voucher"
+                ? "Gutscheine sind eindeutig und werden einmalig eingelöst. QR-Code enthält Code, Wert und Gültigkeit."
+                : "Definieren Sie Bedingungen wie Mittagstisch, nur Sonntag oder ein tägliches Zeitfenster."}
             </DialogDescription>
           </DialogHeader>
 
@@ -905,11 +1114,13 @@ export default function AdminMenuDiscountsPage() {
                 <Input
                   value={voucherCode}
                   onChange={(event) => setVoucherCode(normalizeVoucherCode(event.target.value))}
-                  placeholder="z. B. SONNTAG15"
+                  placeholder={voucherScope === "individual" ? "UUID-Code (z. B. IND-...)" : "z. B. SONNTAG15"}
                   disabled={submitting}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Optional. Wenn leer, wird ein Code automatisch erzeugt.
+                  {voucherScope === "individual"
+                    ? "Individuelle Angebote müssen einen UUID-Code enthalten."
+                    : "Optional. Wenn leer, wird ein Code automatisch erzeugt."}
                 </p>
               </div>
             </div>
@@ -926,6 +1137,39 @@ export default function AdminMenuDiscountsPage() {
               />
             </div>
 
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Zielgruppe</label>
+              <Select
+                value={voucherScope}
+                onValueChange={(value) => {
+                  const nextScope = value as VoucherScope;
+                  setVoucherScope(nextScope);
+                  if (nextScope === "individual") {
+                    setVoucherMaxUses("1");
+                    if (!containsUuidToken(voucherCode)) {
+                      setVoucherCode(`IND-${generateUuidToken()}`);
+                    }
+                  } else if (voucherMaxUses === "1") {
+                    setVoucherMaxUses("");
+                    if (containsUuidToken(voucherCode)) {
+                      setVoucherCode(generateAutoCode(voucherName));
+                    }
+                  } else if (containsUuidToken(voucherCode)) {
+                    setVoucherCode(generateAutoCode(voucherName));
+                  }
+                }}
+                disabled={submitting}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Öffentlich (für alle)</SelectItem>
+                  <SelectItem value="individual">Individuell (UUID-basiert)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Rabattart</label>
@@ -939,7 +1183,9 @@ export default function AdminMenuDiscountsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fixed">Fixbetrag (EUR)</SelectItem>
-                    <SelectItem value="percentage">Prozent (%)</SelectItem>
+                    {voucherKind === "discount" ? (
+                      <SelectItem value="percentage">Prozent (%)</SelectItem>
+                    ) : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -1074,10 +1320,10 @@ export default function AdminMenuDiscountsPage() {
                   type="number"
                   min="1"
                   step="1"
-                  value={voucherMaxUses}
+                  value={voucherScope === "individual" ? "1" : voucherMaxUses}
                   onChange={(event) => setVoucherMaxUses(event.target.value)}
-                  placeholder="Optional"
-                  disabled={submitting}
+                  placeholder={voucherScope === "individual" ? "Immer 1" : "Optional"}
+                  disabled={submitting || voucherScope === "individual"}
                 />
               </div>
               <div>
@@ -1095,6 +1341,38 @@ export default function AdminMenuDiscountsPage() {
                 />
               </div>
             </div>
+
+            {voucherScope === "individual" && voucherQrPreview ? (
+              <div className="rounded-xl border border-border/80 bg-background/50 p-4">
+                <p className="text-sm font-medium">QR-Code für Einlösung</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Der QR-Code enthält Code, Wert und Gültigkeit. Beim Scan kann das Service-Team den Gutschein eindeutig prüfen.
+                </p>
+                <div className="mt-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                  <div ref={qrPreviewContainerRef} className="rounded-lg bg-white p-2">
+                    <QRCodeSVG value={voucherQrPreview} size={120} level="M" />
+                  </div>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p>Code: {(normalizeVoucherCode(voucherCode) || generateAutoCode(voucherName)).toUpperCase()}</p>
+                    <p>Wert: {voucherValue ? `${voucherValue} ${voucherType === "percentage" ? "%" : "EUR"}` : "-"}</p>
+                    <p>Typ: {offerKindLabel(voucherKind)} · {offerScopeLabel(voucherScope)}</p>
+                    <p>
+                      Gültig: {voucherValidFrom ? formatDate(voucherValidFrom) : "-"} bis {voucherValidUntil ? formatDate(voucherValidUntil) : "-"}
+                    </p>
+                    <p>Einlösungen: {voucherScope === "individual" ? "1 (einmalig)" : "gemäß Einstellung"}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDownloadVoucherQr}
+                      disabled={submitting}
+                    >
+                      QR exportieren (SVG)
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
               <div>

@@ -3,6 +3,8 @@ import { API_PREFIX, buildApiUrl, getApiBaseUrl } from "./config";
 
 export type VoucherDiscountType = "fixed" | "percentage";
 export type VoucherAppliesTo = "all" | "breakfast" | "lunch" | "dinner";
+export type VoucherKind = "discount" | "voucher";
+export type VoucherScope = "public" | "individual";
 
 export interface Voucher {
   id: string;
@@ -10,6 +12,8 @@ export interface Voucher {
   code: string;
   name: string | null;
   description: string | null;
+  kind: VoucherKind;
+  scope: VoucherScope;
   type: VoucherDiscountType;
   value: number;
   applies_to: VoucherAppliesTo;
@@ -41,6 +45,8 @@ export interface VoucherCreate {
   code: string;
   name?: string | null;
   description?: string | null;
+  kind?: VoucherKind;
+  scope?: VoucherScope;
   type?: VoucherDiscountType;
   value: number;
   applies_to?: VoucherAppliesTo;
@@ -58,6 +64,8 @@ export interface VoucherUpdate {
   code?: string | null;
   name?: string | null;
   description?: string | null;
+  kind?: VoucherKind;
+  scope?: VoucherScope;
   type?: VoucherDiscountType;
   value?: number;
   applies_to?: VoucherAppliesTo;
