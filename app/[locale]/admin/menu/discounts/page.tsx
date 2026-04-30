@@ -57,6 +57,8 @@ import {
 } from "@/components/ui/select";
 
 type VoucherStatus = "active" | "inactive" | "scheduled" | "expired" | "exhausted";
+type VoucherApiItem = Omit<Voucher, "kind" | "scope" | "remaining_value"> &
+  Partial<Pick<Voucher, "kind" | "scope" | "remaining_value">>;
 
 const SERVICE_TYPE_OPTIONS: Array<{ value: VoucherAppliesTo; label: string }> = [
   { value: "all", label: "Alle Services" },
@@ -137,6 +139,44 @@ function getTodayDateKey(): string {
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function resolveVoucherKind(voucher: VoucherApiItem): VoucherKind {
+  if (voucher.kind === "voucher" || voucher.kind === "discount") {
+    return voucher.kind;
+  }
+
+  if (voucher.type === "percentage") {
+    return "discount";
+  }
+
+  const normalizedCode = normalizeVoucherCode(voucher.code ?? "");
+  if (voucher.max_uses === 1 || normalizedCode.startsWith("IND-") || containsUuidToken(normalizedCode)) {
+    return "voucher";
+  }
+
+  return "discount";
+}
+
+function resolveVoucherScope(voucher: VoucherApiItem): VoucherScope {
+  if (voucher.scope === "individual" || voucher.scope === "public") {
+    return voucher.scope;
+  }
+
+  const normalizedCode = normalizeVoucherCode(voucher.code ?? "");
+  const likelyIndividual =
+    voucher.max_uses === 1 || normalizedCode.startsWith("IND-") || containsUuidToken(normalizedCode);
+  return likelyIndividual ? "individual" : "public";
+}
+
+function normalizeVoucherForUi(voucher: Voucher): Voucher {
+  const rawVoucher = voucher as VoucherApiItem;
+  return {
+    ...voucher,
+    kind: resolveVoucherKind(rawVoucher),
+    scope: resolveVoucherScope(rawVoucher),
+    remaining_value: rawVoucher.remaining_value ?? null,
+  };
 }
 
 function getVoucherStatus(voucher: Voucher, todayDate: string): VoucherStatus {
@@ -435,7 +475,7 @@ export default function AdminMenuDiscountsPage() {
           const bDate = new Date(b.created_at).getTime();
           return bDate - aDate;
         });
-        setVouchers(sorted);
+        setVouchers(sorted.map(normalizeVoucherForUi));
       } catch (error) {
         console.error("Fehler beim Laden der Gutscheine/Rabatte:", error);
         toast.error("Gutscheine und Rabatte konnten nicht geladen werden");
@@ -518,11 +558,12 @@ export default function AdminMenuDiscountsPage() {
     setVoucherUsage([]);
 
     if (voucher) {
+      const normalizedVoucher = normalizeVoucherForUi(voucher);
       setVoucherName(voucher.name ?? "");
       setVoucherCode(voucher.code);
       setVoucherDescription(voucher.description ?? "");
-      setVoucherKind(voucher.kind ?? "discount");
-      setVoucherScope(voucher.scope ?? "public");
+      setVoucherKind(normalizedVoucher.kind);
+      setVoucherScope(normalizedVoucher.scope);
       setVoucherType(voucher.type);
       setVoucherValue(String(voucher.value));
       setVoucherAppliesTo(voucher.applies_to ?? "all");
@@ -770,15 +811,15 @@ export default function AdminMenuDiscountsPage() {
     URL.revokeObjectURL(url);
   }, [voucherCode, voucherName, voucherQrPreview]);
 
-  const renderVoucherCards = (
+  const renderVoucherTable = (
     entries: Array<{ voucher: Voucher; status: VoucherStatus }>,
     emptyText: string
   ) => {
     if (loadingVouchers) {
       return (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-48 rounded-xl" />
+            <Skeleton key={index} className="h-12 rounded-md" />
           ))}
         </div>
       );
@@ -792,90 +833,94 @@ export default function AdminMenuDiscountsPage() {
       );
     }
     return (
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {entries.map(({ voucher, status }) => {
-          const remainingAmount = getVoucherRemainingAmount(voucher);
-          const usagePercent =
-            voucher.kind === "voucher"
-              ? voucher.value > 0
-                ? Math.min(100, Math.round(((voucher.value - remainingAmount) / voucher.value) * 100))
-                : 0
-              : voucher.max_uses && voucher.max_uses > 0
-                ? Math.min(100, Math.round((voucher.used_count / voucher.max_uses) * 100))
-                : 0;
-          return (
-            <button
-              key={voucher.id}
-              type="button"
-              onClick={() => openDialog(voucher)}
-              disabled={!canManageVouchers}
-              className="group rounded-xl border border-border/80 bg-background/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold leading-tight">{voucher.name || "Ohne Titel"}</p>
-                  <p className="mt-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">
-                    {voucher.code}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <Badge className={statusBadgeClass(status)}>{statusLabel(status)}</Badge>
-                  <Badge variant="outline">{offerKindLabel(voucher.kind)}</Badge>
-                  <Badge variant="outline">{offerScopeLabel(voucher.scope)}</Badge>
-                </div>
-              </div>
+      <div className="overflow-x-auto rounded-xl border border-border/80">
+        <table className="w-full min-w-[940px] text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40">
+              <th className="px-3 py-2 text-left font-medium">Name / Code</th>
+              <th className="px-3 py-2 text-left font-medium">Typ</th>
+              <th className="px-3 py-2 text-left font-medium">Wert</th>
+              <th className="px-3 py-2 text-left font-medium">Status</th>
+              <th className="px-3 py-2 text-left font-medium">Gültigkeit</th>
+              <th className="px-3 py-2 text-left font-medium">Nutzung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(({ voucher, status }) => {
+              const remainingAmount = getVoucherRemainingAmount(voucher);
+              const usageText =
+                voucher.kind === "voucher"
+                  ? `${formatCurrency(remainingAmount)} / ${formatCurrency(voucher.value)}`
+                  : `${voucher.used_count}${voucher.max_uses !== null ? ` / ${voucher.max_uses}` : ""}`;
 
-              <div className="mt-3 flex items-center gap-2">
-                <Badge variant="secondary">
-                  {voucher.type === "percentage" ? "Prozent" : "Fixbetrag"}
-                </Badge>
-                <span className="text-sm font-semibold text-foreground">{discountLabel(voucher)}</span>
-              </div>
-
-              {voucher.description ? (
-                <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{voucher.description}</p>
-              ) : null}
-
-              <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-                <p>
-                  Einsatz: {appliesToLabel(voucher.applies_to)} | {weekdaysSummary(voucher.valid_weekdays)}
-                </p>
-                <p>
-                  Zeitfenster: {voucher.valid_time_from && voucher.valid_time_until
-                    ? `${toTimeDisplay(voucher.valid_time_from)} - ${toTimeDisplay(voucher.valid_time_until)}`
-                    : "Ganztägig"}
-                </p>
-                <p>
-                  Gültig: {formatDate(voucher.valid_from)} bis {formatDate(voucher.valid_until)}
-                </p>
-                <p>
-                  Mindestbestellwert: {voucher.min_order_value !== null
-                    ? formatCurrency(voucher.min_order_value)
-                    : "Keiner"}
-                </p>
-              </div>
-
-              <div className="mt-3 border-t border-border/80 pt-3">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Nutzung</span>
-                  <span>
-                    {voucher.kind === "voucher"
-                      ? `${formatCurrency(remainingAmount)} / ${formatCurrency(voucher.value)}`
-                      : `${voucher.used_count}${voucher.max_uses !== null ? ` / ${voucher.max_uses}` : ""}`}
-                  </span>
-                </div>
-                {(voucher.kind === "voucher" || voucher.max_uses !== null) ? (
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary"
-                      style={{ width: `${usagePercent}%` }}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </button>
-          );
-        })}
+              return (
+                <tr
+                  key={voucher.id}
+                  role="button"
+                  tabIndex={canManageVouchers ? 0 : -1}
+                  onClick={() => {
+                    if (!canManageVouchers) return;
+                    openDialog(voucher);
+                  }}
+                  onKeyDown={(event) => {
+                    if (!canManageVouchers) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openDialog(voucher);
+                    }
+                  }}
+                  className={`border-b last:border-b-0 ${
+                    canManageVouchers
+                      ? "cursor-pointer hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      : ""
+                  }`}
+                >
+                  <td className="px-3 py-2 align-top">
+                    <div className="font-medium">{voucher.name || "Ohne Titel"}</div>
+                    <div className="font-mono text-xs uppercase tracking-wide text-muted-foreground">
+                      {voucher.code}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="outline">{offerKindLabel(voucher.kind)}</Badge>
+                      <Badge variant="outline">{offerScopeLabel(voucher.scope)}</Badge>
+                      <Badge variant="secondary">
+                        {voucher.type === "percentage" ? "Prozent" : "Fixbetrag"}
+                      </Badge>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <div className="font-medium">{discountLabel(voucher)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Mindestbestellwert:{" "}
+                      {voucher.min_order_value !== null ? formatCurrency(voucher.min_order_value) : "Keiner"}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <Badge className={statusBadgeClass(status)}>{statusLabel(status)}</Badge>
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(voucher.valid_from)} bis {formatDate(voucher.valid_until)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {voucher.valid_time_from && voucher.valid_time_until
+                        ? `${toTimeDisplay(voucher.valid_time_from)} - ${toTimeDisplay(voucher.valid_time_until)}`
+                        : "Ganztägig"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {appliesToLabel(voucher.applies_to)} | {weekdaysSummary(voucher.valid_weekdays)}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    <div className="text-sm">{usageText}</div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     );
   };
@@ -1037,7 +1082,7 @@ export default function AdminMenuDiscountsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {renderVoucherCards(
+                {renderVoucherTable(
                   groupedFilteredVouchers.vouchersOnly,
                   searchQuery || statusFilter !== "all" || typeFilter !== "all"
                     ? "Filter anpassen."
@@ -1063,7 +1108,7 @@ export default function AdminMenuDiscountsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {renderVoucherCards(
+                {renderVoucherTable(
                   groupedFilteredVouchers.discountsOnly,
                   searchQuery || statusFilter !== "all" || typeFilter !== "all"
                     ? "Filter anpassen."

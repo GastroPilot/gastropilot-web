@@ -72,8 +72,8 @@ export function AdminRestaurantSwitcher() {
   if (!isLoading && restaurants.length === 0) return null;
 
   return (
-    <div className="hidden lg:flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1">
-      <Store className="h-4 w-4 text-primary-contrast" />
+    <div className="hidden lg:flex items-center gap-2">
+      <Store className="h-4 w-4 text-muted-foreground" />
       <Select
         value={selectedRestaurantId}
         onValueChange={(value) => {
@@ -82,7 +82,7 @@ export function AdminRestaurantSwitcher() {
         }}
         disabled={isLoading}
       >
-        <SelectTrigger className="h-8 min-w-[220px] rounded-full border-primary/20 bg-background/85 text-[13px] font-medium">
+        <SelectTrigger className="h-8 min-w-[220px] border-0 bg-transparent px-0 text-[13px] font-medium shadow-none focus:ring-0 focus:ring-offset-0">
           {isLoading ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
