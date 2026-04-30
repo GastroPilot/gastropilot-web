@@ -1,20 +1,91 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { adminStatsApi } from "@/lib/api/admin";
+import { adminStatsApi, type AdminTenant } from "@/lib/api/admin";
+import { listAccessibleRestaurants } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CalendarDays, Star, Store } from "lucide-react";
 
 export default function AdminDashboard() {
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
+  const [restaurants, setRestaurants] = useState<AdminTenant[]>([]);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
+  const [loadingRestaurants, setLoadingRestaurants] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRestaurants() {
+      if (!adminRole) {
+        if (!mounted) return;
+        setRestaurants([]);
+        setSelectedRestaurantId("");
+        setLoadingRestaurants(false);
+        return;
+      }
+
+      setLoadingRestaurants(true);
+      try {
+        const list = await listAccessibleRestaurants(adminRole);
+        if (!mounted) return;
+        setRestaurants(list);
+        setSelectedRestaurantId((currentId) =>
+          resolvePreferredRestaurantId(list, currentId)
+        );
+      } finally {
+        if (mounted) setLoadingRestaurants(false);
+      }
+    }
+
+    loadRestaurants();
+    return () => {
+      mounted = false;
+    };
+  }, [adminRole]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      setSelectedRestaurantId((currentId) => {
+        if (currentId === restaurantId) return currentId;
+        if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return currentId;
+        return restaurantId;
+      });
+    });
+  }, [restaurants]);
+
+  const selectedRestaurant = useMemo(
+    () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
+    [restaurants, selectedRestaurantId]
+  );
+
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["admin", "stats"],
-    queryFn: () => adminStatsApi.get(),
+    queryKey: ["admin", "stats", selectedRestaurantId],
+    queryFn: () => adminStatsApi.get({ restaurant_id: selectedRestaurantId }),
+    enabled: !!selectedRestaurantId && !loadingRestaurants,
   });
 
-  if (isLoading || !stats) {
+  if (loadingRestaurants || isLoading || !stats || !selectedRestaurantId) {
     return (
       <div>
         <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
+        {selectedRestaurant ? (
+          <p className="mb-4 text-sm text-muted-foreground">
+            Aktives Restaurant: <span className="font-medium text-foreground">{selectedRestaurant.name}</span>
+          </p>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -58,6 +129,11 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
+      {selectedRestaurant ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Aktives Restaurant: <span className="font-medium text-foreground">{selectedRestaurant.name}</span>
+        </p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (

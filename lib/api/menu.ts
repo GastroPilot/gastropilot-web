@@ -84,8 +84,13 @@ interface MenuRequestOptions {
   accessToken?: string;
 }
 
-function buildQuery(params: { category_id?: string; available_only?: boolean }): string {
+function buildQuery(params: {
+  restaurant_id?: string;
+  category_id?: string;
+  available_only?: boolean;
+}): string {
   const search = new URLSearchParams();
+  if (params.restaurant_id) search.set("restaurant_id", params.restaurant_id);
   if (params.category_id) search.set("category_id", params.category_id);
   if (params.available_only) search.set("available_only", "true");
   const query = search.toString();
@@ -136,14 +141,17 @@ async function requestWithAccessToken<T>(
 }
 
 export const menuManagementApi = {
-  listCategories: (options: MenuRequestOptions = {}): Promise<MenuCategory[]> =>
+  listCategories: (
+    params: { restaurant_id?: string } = {},
+    options: MenuRequestOptions = {}
+  ): Promise<MenuCategory[]> =>
     options.accessToken
       ? requestWithAccessToken<MenuCategory[]>(
-          "/menus/categories",
+          `/menus/categories${buildQuery(params)}`,
           "GET",
           options.accessToken
         )
-      : adminApi.get<MenuCategory[]>("/menus/categories"),
+      : adminApi.get<MenuCategory[]>(`/menus/categories${buildQuery(params)}`),
 
   createCategory: (data: MenuCategoryCreate, options: MenuRequestOptions = {}): Promise<MenuCategory> =>
     options.accessToken
@@ -179,7 +187,7 @@ export const menuManagementApi = {
       : adminApi.delete<void>(`/menus/categories/${categoryId}`),
 
   listItems: (
-    params: { category_id?: string; available_only?: boolean } = {},
+    params: { restaurant_id?: string; category_id?: string; available_only?: boolean } = {},
     options: MenuRequestOptions = {}
   ): Promise<MenuItem[]> =>
     options.accessToken

@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminReviewsApi } from "@/lib/api/admin";
+import { listAccessibleRestaurants } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,19 +20,47 @@ import { toast } from "sonner";
 
 export default function AdminReviewsPage() {
   const queryClient = useQueryClient();
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
   const [page, setPage] = useState(1);
   const [visibleFilter, setVisibleFilter] = useState<boolean | undefined>(undefined);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
+  const { data: restaurants = [], isLoading: isLoadingRestaurants } = useQuery({
+    queryKey: ["admin", "reviews", "restaurants", adminRole],
+    queryFn: () => listAccessibleRestaurants(adminRole),
+    enabled: !!adminRole,
+  });
+
+  useEffect(() => {
+    setSelectedRestaurantId((currentId) => resolvePreferredRestaurantId(restaurants, currentId));
+  }, [restaurants]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return;
+      setSelectedRestaurantId(restaurantId);
+      setPage(1);
+    });
+  }, [restaurants]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "reviews", page, visibleFilter],
+    queryKey: ["admin", "reviews", page, visibleFilter, selectedRestaurantId],
     queryFn: () =>
       adminReviewsApi.list({
         page,
         per_page: 50,
         visible: visibleFilter,
+        restaurant_id: selectedRestaurantId,
       }),
+    enabled: !!selectedRestaurantId && !isLoadingRestaurants,
   });
 
   const toggleMutation = useMutation({
@@ -61,6 +96,7 @@ export default function AdminReviewsPage() {
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
   const reviews = data?.items ?? [];
+  const showLoading = isLoading || isLoadingRestaurants || !selectedRestaurantId;
 
   return (
     <div>
@@ -90,7 +126,7 @@ export default function AdminReviewsPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {showLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="rounded-md border p-4 md:hidden">

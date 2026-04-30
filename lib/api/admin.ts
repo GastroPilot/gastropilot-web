@@ -81,7 +81,14 @@ function buildQuery(params: Record<string, unknown>): string {
 }
 
 export const adminGuestsApi = {
-  list: (params: { page?: number; per_page?: number; search?: string } = {}) =>
+  list: (
+    params: {
+      page?: number;
+      per_page?: number;
+      search?: string;
+      restaurant_id?: string;
+    } = {}
+  ) =>
     adminApi.get<PaginatedResponse<AdminGuest>>(
       `/admin/guests${buildQuery(params)}`
     ),
@@ -163,7 +170,8 @@ export const adminReviewsApi = {
 };
 
 export const adminStatsApi = {
-  get: () => adminApi.get<AdminStats>("/admin/stats"),
+  get: (params: { restaurant_id?: string } = {}) =>
+    adminApi.get<AdminStats>(`/admin/stats${buildQuery(params)}`),
 };
 
 // ─── Tenant Types ──────────────────────────────────────────────────────────

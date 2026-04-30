@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Loader2,
@@ -26,6 +26,11 @@ import {
   listAccessibleRestaurants,
   withOptionalAccessToken,
 } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
 import { isManagerOrAboveRole } from "@/lib/admin-access";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
@@ -121,6 +126,7 @@ export default function AdminMenuPage() {
   const [itemIsAvailable, setItemIsAvailable] = useState(true);
   const [itemSortOrder, setItemSortOrder] = useState(0);
   const [itemAllergens, setItemAllergens] = useState<string[]>([]);
+  const triedAutoSwitchOnEmptyMenu = useRef(false);
 
   const selectedRestaurant = useMemo(
     () => restaurants.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null,
@@ -182,10 +188,7 @@ export default function AdminMenuPage() {
       const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((currentId) => {
-        if (currentId && list.some((restaurant) => restaurant.id === currentId)) {
-          return currentId;
-        }
-        return list[0]?.id ?? "";
+        return resolvePreferredRestaurantId(list, currentId);
       });
     } catch (error) {
       console.error("Fehler beim Laden der Restaurants:", error);
@@ -210,24 +213,94 @@ export default function AdminMenuPage() {
     try {
       const accessToken = await getTenantAccessToken(restaurantId);
       const requestOptions = withOptionalAccessToken(accessToken);
-      const [allCategories, allItems] = await Promise.all([
-        menuManagementApi.listCategories(requestOptions),
-        menuManagementApi.listItems({}, requestOptions),
-      ]);
+      const loadForOptions = async (
+        targetRestaurantId: string,
+        options: { accessToken?: string }
+      ) =>
+        Promise.all([
+          menuManagementApi.listCategories({ restaurant_id: targetRestaurantId }, options),
+          menuManagementApi.listItems({ restaurant_id: targetRestaurantId }, options),
+        ]);
 
-      setCategories(sortCategories(allCategories));
-      setItems(sortItems(allItems));
+      let [allCategories, allItems] = await loadForOptions(restaurantId, requestOptions);
+
+      // Fallback for platform-admin sessions where impersonation token context
+      // may not be applied consistently in local dev.
+      if (accessToken && allCategories.length === 0 && allItems.length === 0) {
+        [allCategories, allItems] = await loadForOptions(restaurantId, {});
+      }
+
+      const tenantCategories = allCategories.filter((category) => category.tenant_id === restaurantId);
+      const tenantItems = allItems.filter((item) => item.tenant_id === restaurantId);
+
+      if (
+        !triedAutoSwitchOnEmptyMenu.current &&
+        tenantCategories.length === 0 &&
+        tenantItems.length === 0 &&
+        restaurants.length > 1
+      ) {
+        triedAutoSwitchOnEmptyMenu.current = true;
+        for (const candidate of restaurants) {
+          if (candidate.id === restaurantId) continue;
+          try {
+            const candidateAccessToken = await getTenantAccessToken(candidate.id);
+            const candidateOptions = withOptionalAccessToken(candidateAccessToken);
+            let [candidateCategories, candidateItems] = await loadForOptions(
+              candidate.id,
+              candidateOptions
+            );
+            if (
+              candidateAccessToken &&
+              candidateCategories.length === 0 &&
+              candidateItems.length === 0
+            ) {
+              [candidateCategories, candidateItems] = await loadForOptions(candidate.id, {});
+            }
+            const hasCandidateData =
+              candidateCategories.some((category) => category.tenant_id === candidate.id) ||
+              candidateItems.some((item) => item.tenant_id === candidate.id);
+            if (hasCandidateData) {
+              setSelectedRestaurantId(candidate.id);
+              toast.info(
+                `Das ausgewählte Restaurant hat keine Menüdaten. Wechsel zu "${candidate.name}".`
+              );
+              return;
+            }
+          } catch {
+            // Ignore candidate errors and continue.
+          }
+        }
+      }
+
+      setCategories(sortCategories(tenantCategories));
+      setItems(sortItems(tenantItems));
     } catch (error) {
       console.error("Fehler beim Laden des Menüs:", error);
       toast.error("Menüdaten konnten nicht geladen werden");
     } finally {
       setLoadingMenu(false);
     }
-  }, [getTenantAccessToken]);
+  }, [getTenantAccessToken, restaurants]);
 
   useEffect(() => {
     loadRestaurants();
   }, [loadRestaurants]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      setSelectedRestaurantId((currentId) => {
+        if (currentId === restaurantId) return currentId;
+        if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return currentId;
+        return restaurantId;
+      });
+    });
+  }, [restaurants]);
 
   useEffect(() => {
     if (!selectedRestaurantId) return;
@@ -240,6 +313,13 @@ export default function AdminMenuPage() {
       setSelectedCategoryId(null);
     }
   }, [categories, selectedCategoryId]);
+
+  useEffect(() => {
+    if (!itemCategoryId) return;
+    if (!categories.some((category) => category.id === itemCategoryId)) {
+      setItemCategoryId(null);
+    }
+  }, [categories, itemCategoryId]);
 
   const openCategoryDialog = (category: MenuCategory | null = null) => {
     if (!canManageMenu) {
@@ -381,6 +461,10 @@ export default function AdminMenuPage() {
       toast.error("Bitte Name und gültigen Preis angeben");
       return;
     }
+    if (itemCategoryId && !categories.some((category) => category.id === itemCategoryId)) {
+      toast.error("Bitte eine gültige Kategorie auswählen");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -444,16 +528,6 @@ export default function AdminMenuPage() {
     }
   };
 
-  const restaurantOptions = useMemo(
-    () =>
-      restaurants.map((restaurant) => ({
-        id: restaurant.id,
-        name: restaurant.name,
-        suspended: restaurant.is_suspended,
-      })),
-    [restaurants]
-  );
-
   return (
     <div className="relative">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-background via-background to-muted/40" />
@@ -495,34 +569,7 @@ export default function AdminMenuPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Restaurant
-                </label>
-                {loadingRestaurants ? (
-                  <Skeleton className="h-10 w-full rounded-md" />
-                ) : (
-                  <Select
-                    value={selectedRestaurantId}
-                    onValueChange={setSelectedRestaurantId}
-                    disabled={restaurantOptions.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Restaurant auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {restaurantOptions.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {option.name}
-                          {option.suspended ? " (deaktiviert)" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
+            <div className="grid gap-3 lg:grid-cols-[1fr]">
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                   Suche

@@ -21,6 +21,8 @@ import {
   Settings,
   Monitor,
   UtensilsCrossed,
+  TicketPercent,
+  Box,
   Undo2,
   Loader2,
   ExternalLink,
@@ -34,6 +36,8 @@ const navItems = [
   { href: "/admin/tenants", label: "Restaurants", icon: Store },
   { href: "/admin/tenant-settings", label: "Restaurant-Einstellungen", icon: Settings },
   { href: "/admin/menu", label: "Menü verwalten", icon: UtensilsCrossed },
+  { href: "/admin/menu/discounts", label: "Gutscheine & Rabatte", icon: TicketPercent },
+  { href: "/admin/menu/deals", label: "Menü-Deals", icon: Box },
   { href: "/admin/devices", label: "Geräte / KDS", icon: Monitor },
   { href: "/admin/billing", label: "Abonnement", icon: CreditCard },
   { href: "/admin/operators", label: "Bedienerverwaltung", icon: UserCog },
@@ -67,9 +71,22 @@ export default function AdminLayout({
     [currentRole]
   );
 
-  const isNavItemActive = (href: string) =>
-    normalizedPathname === href ||
-    (href !== "/admin" && normalizedPathname.startsWith(href));
+  const isNavItemActive = (href: string) => {
+    if (normalizedPathname === href) return true;
+    if (href === "/admin") return false;
+    if (!normalizedPathname.startsWith(`${href}/`)) return false;
+
+    const hasMoreSpecificMatch = visibleNavItems.some((item) => {
+      if (item.href === href) return false;
+      if (!item.href.startsWith(`${href}/`)) return false;
+      return (
+        normalizedPathname === item.href ||
+        normalizedPathname.startsWith(`${item.href}/`)
+      );
+    });
+
+    return !hasMoreSpecificMatch;
+  };
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
