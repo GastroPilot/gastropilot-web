@@ -28,6 +28,11 @@ import {
   listAccessibleRestaurants,
   withOptionalAccessToken,
 } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
 import { isManagerOrAboveRole } from "@/lib/admin-access";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
@@ -309,16 +314,6 @@ export default function AdminMenuDiscountsPage() {
     [restaurants, selectedRestaurantId]
   );
 
-  const restaurantOptions = useMemo(
-    () =>
-      restaurants.map((restaurant) => ({
-        id: restaurant.id,
-        name: restaurant.name,
-        suspended: restaurant.is_suspended,
-      })),
-    [restaurants]
-  );
-
   const vouchersWithStatus = useMemo(
     () =>
       vouchers.map((voucher) => ({
@@ -407,10 +402,7 @@ export default function AdminMenuDiscountsPage() {
       const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((currentId) => {
-        if (currentId && list.some((restaurant) => restaurant.id === currentId)) {
-          return currentId;
-        }
-        return list[0]?.id ?? "";
+        return resolvePreferredRestaurantId(list, currentId);
       });
     } catch (error) {
       console.error("Fehler beim Laden der Restaurants:", error);
@@ -457,6 +449,22 @@ export default function AdminMenuDiscountsPage() {
   useEffect(() => {
     loadRestaurants();
   }, [loadRestaurants]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      setSelectedRestaurantId((currentId) => {
+        if (currentId === restaurantId) return currentId;
+        if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return currentId;
+        return restaurantId;
+      });
+    });
+  }, [restaurants]);
 
   useEffect(() => {
     if (!selectedRestaurantId) return;
@@ -913,34 +921,7 @@ export default function AdminMenuDiscountsPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="grid gap-3 xl:grid-cols-[300px_1fr_180px_180px]">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Restaurant
-                </label>
-                {loadingRestaurants ? (
-                  <Skeleton className="h-10 w-full rounded-md" />
-                ) : (
-                  <Select
-                    value={selectedRestaurantId}
-                    onValueChange={setSelectedRestaurantId}
-                    disabled={restaurantOptions.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Restaurant auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {restaurantOptions.map((option) => (
-                        <SelectItem key={option.id} value={option.id}>
-                          {option.name}
-                          {option.suspended ? " (deaktiviert)" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
+            <div className="grid gap-3 xl:grid-cols-[1fr_180px_180px]">
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                   Suche

@@ -21,17 +21,15 @@ import {
   listAccessibleRestaurants,
   withOptionalAccessToken,
 } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const tierOrder = ["free", "starter", "professional", "enterprise"];
 
@@ -70,10 +68,7 @@ export default function AdminBillingPage() {
       const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((currentId) => {
-        if (currentId && list.some((restaurant) => restaurant.id === currentId)) {
-          return currentId;
-        }
-        return list[0]?.id ?? "";
+        return resolvePreferredRestaurantId(list, currentId);
       });
     } catch (error) {
       console.error("Fehler beim Laden der Restaurants:", error);
@@ -114,6 +109,22 @@ export default function AdminBillingPage() {
   useEffect(() => {
     loadRestaurants();
   }, [loadRestaurants]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      setSelectedRestaurantId((currentId) => {
+        if (currentId === restaurantId) return currentId;
+        if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return currentId;
+        return restaurantId;
+      });
+    });
+  }, [restaurants]);
 
   useEffect(() => {
     if (!selectedRestaurantId) return;
@@ -205,34 +216,7 @@ export default function AdminBillingPage() {
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4">
-            <div className="max-w-sm space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                Restaurant
-              </label>
-              {loadingRestaurants ? (
-                <Skeleton className="h-10 w-full rounded-md" />
-              ) : (
-                <Select
-                  value={selectedRestaurantId}
-                  onValueChange={setSelectedRestaurantId}
-                  disabled={restaurants.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Restaurant auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {restaurants.map((restaurant) => (
-                      <SelectItem key={restaurant.id} value={restaurant.id}>
-                        {restaurant.name}
-                        {restaurant.is_suspended ? " (deaktiviert)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </CardContent>
+          <CardContent />
         </Card>
 
         {!selectedRestaurantId && !loadingRestaurants ? (

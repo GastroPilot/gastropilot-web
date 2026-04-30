@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { adminGuestsApi } from "@/lib/api/admin";
 import { listAccessibleRestaurants } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +34,24 @@ export default function AdminGuestsPage() {
     enabled: !!adminRole,
   });
 
+  useEffect(() => {
+    setSelectedRestaurantId((currentId) => resolvePreferredRestaurantId(restaurants, currentId));
+  }, [restaurants]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return;
+      setSelectedRestaurantId(restaurantId);
+      setPage(1);
+    });
+  }, [restaurants]);
+
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "guests", page, search, selectedRestaurantId],
     queryFn: () =>
@@ -36,8 +59,9 @@ export default function AdminGuestsPage() {
         page,
         per_page: 50,
         search,
-        restaurant_id: selectedRestaurantId || undefined,
+        restaurant_id: selectedRestaurantId,
       }),
+    enabled: !!selectedRestaurantId && !isLoadingRestaurants,
   });
 
   const deleteMutation = useMutation({
@@ -57,6 +81,7 @@ export default function AdminGuestsPage() {
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
   const guests = data?.items ?? [];
+  const showLoading = isLoading || isLoadingRestaurants || !selectedRestaurantId;
 
   return (
     <div>
@@ -64,31 +89,8 @@ export default function AdminGuestsPage() {
 
       <form
         onSubmit={handleSearch}
-        className="mb-4 grid gap-2 lg:grid-cols-[300px_1fr_auto]"
+        className="mb-4 grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]"
       >
-        <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Restaurant
-          </label>
-          <select
-            value={selectedRestaurantId}
-            onChange={(e) => {
-              setSelectedRestaurantId(e.target.value);
-              setPage(1);
-            }}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            disabled={isLoadingRestaurants}
-          >
-            <option value="">
-              {isLoadingRestaurants ? "Restaurants laden..." : "Alle Restaurants"}
-            </option>
-            {restaurants.map((restaurant) => (
-              <option key={restaurant.id} value={restaurant.id}>
-                {restaurant.name}
-              </option>
-            ))}
-          </select>
-        </div>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -103,7 +105,7 @@ export default function AdminGuestsPage() {
         </Button>
       </form>
 
-      {isLoading ? (
+      {showLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="rounded-md border p-4 md:hidden">

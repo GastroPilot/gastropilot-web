@@ -25,6 +25,11 @@ import {
   listAccessibleRestaurants,
   withOptionalAccessToken,
 } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -127,10 +132,7 @@ export default function AdminDevicesPage() {
       const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((current) => {
-        if (current && list.some((restaurant) => restaurant.id === current)) {
-          return current;
-        }
-        return list[0]?.id ?? "";
+        return resolvePreferredRestaurantId(list, current);
       });
     } catch (error) {
       console.error("Fehler beim Laden der Restaurants:", error);
@@ -166,6 +168,22 @@ export default function AdminDevicesPage() {
   useEffect(() => {
     loadRestaurants();
   }, [loadRestaurants]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      setSelectedRestaurantId((currentId) => {
+        if (currentId === restaurantId) return currentId;
+        if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return currentId;
+        return restaurantId;
+      });
+    });
+  }, [restaurants]);
 
   useEffect(() => {
     if (!selectedRestaurantId) {
@@ -339,34 +357,7 @@ export default function AdminDevicesPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <div className="grid gap-3 lg:grid-cols-[320px_minmax(0,1fr)]">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Restaurant
-                </label>
-                {loadingRestaurants ? (
-                  <Skeleton className="h-10 w-full rounded-md" />
-                ) : (
-                  <Select
-                    value={selectedRestaurantId}
-                    onValueChange={setSelectedRestaurantId}
-                    disabled={restaurants.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Restaurant auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {restaurants.map((restaurant) => (
-                        <SelectItem key={restaurant.id} value={restaurant.id}>
-                          {restaurant.name}
-                          {restaurant.is_suspended ? " (deaktiviert)" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)]">
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="rounded-lg border border-border/70 bg-background/60 px-3 py-2.5">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Geräte</div>

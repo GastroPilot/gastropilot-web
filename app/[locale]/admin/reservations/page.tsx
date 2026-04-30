@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminReservationsApi } from "@/lib/api/admin";
+import { listAccessibleRestaurants } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
+import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,17 +39,45 @@ const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "o
 
 export default function AdminReservationsPage() {
   const queryClient = useQueryClient();
+  const adminRole = useAdminAuth((state) => state.adminUser?.role ?? null);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState("");
+
+  const { data: restaurants = [], isLoading: isLoadingRestaurants } = useQuery({
+    queryKey: ["admin", "reservations", "restaurants", adminRole],
+    queryFn: () => listAccessibleRestaurants(adminRole),
+    enabled: !!adminRole,
+  });
+
+  useEffect(() => {
+    setSelectedRestaurantId((currentId) => resolvePreferredRestaurantId(restaurants, currentId));
+  }, [restaurants]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return;
+      setSelectedRestaurantId(restaurantId);
+      setPage(1);
+    });
+  }, [restaurants]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "reservations", page, statusFilter],
+    queryKey: ["admin", "reservations", page, statusFilter, selectedRestaurantId],
     queryFn: () =>
       adminReservationsApi.list({
         page,
         per_page: 50,
         status: statusFilter || undefined,
+        restaurant_id: selectedRestaurantId,
       }),
+    enabled: !!selectedRestaurantId && !isLoadingRestaurants,
   });
 
   const statusMutation = useMutation({
@@ -65,6 +100,7 @@ export default function AdminReservationsPage() {
 
   const totalPages = data ? Math.ceil(data.total / data.per_page) : 0;
   const reservations = data?.items ?? [];
+  const showLoading = isLoading || isLoadingRestaurants || !selectedRestaurantId;
 
   return (
     <div>
@@ -87,7 +123,7 @@ export default function AdminReservationsPage() {
         ))}
       </div>
 
-      {isLoading ? (
+      {showLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="rounded-md border p-4 md:hidden">

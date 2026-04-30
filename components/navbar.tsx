@@ -19,6 +19,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationBell } from "@/components/notification-bell";
 import { useDashboardUrl } from "@/lib/dashboard-url";
+import { AdminRestaurantSwitcher } from "@/components/admin-restaurant-switcher";
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -78,6 +79,7 @@ export function Navbar() {
           >
             Für Restaurants
           </Link>
+          <AdminRestaurantSwitcher />
 
           <span className="h-5 w-px bg-border" />
 

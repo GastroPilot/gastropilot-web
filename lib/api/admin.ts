@@ -170,7 +170,8 @@ export const adminReviewsApi = {
 };
 
 export const adminStatsApi = {
-  get: () => adminApi.get<AdminStats>("/admin/stats"),
+  get: (params: { restaurant_id?: string } = {}) =>
+    adminApi.get<AdminStats>(`/admin/stats${buildQuery(params)}`),
 };
 
 // ─── Tenant Types ──────────────────────────────────────────────────────────

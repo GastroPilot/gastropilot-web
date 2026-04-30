@@ -42,6 +42,11 @@ import {
   getRestaurantAccessToken,
   listAccessibleRestaurants,
 } from "@/lib/admin-tenant-context";
+import {
+  onPreferredAdminRestaurantChange,
+  resolvePreferredRestaurantId,
+  setPreferredAdminRestaurantId,
+} from "@/lib/admin-restaurant-preference";
 import { canEditTenantSlug } from "@/lib/admin-access";
 import { useAdminAuth } from "@/lib/hooks/use-admin-auth";
 import {
@@ -248,10 +253,7 @@ export default function TenantSettingsPage() {
       const list = await listAccessibleRestaurants(adminRole);
       setRestaurants(list);
       setSelectedRestaurantId((current) => {
-        if (current && list.some((restaurant) => restaurant.id === current)) {
-          return current;
-        }
-        return list[0]?.id ?? "";
+        return resolvePreferredRestaurantId(list, current);
       });
     } catch (error) {
       console.error("Fehler beim Laden der Restaurants:", error);
@@ -354,6 +356,22 @@ export default function TenantSettingsPage() {
   useEffect(() => {
     loadRestaurantList();
   }, [loadRestaurantList]);
+
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
+    setPreferredAdminRestaurantId(selectedRestaurantId);
+  }, [selectedRestaurantId]);
+
+  useEffect(() => {
+    return onPreferredAdminRestaurantChange((restaurantId) => {
+      if (!restaurantId) return;
+      setSelectedRestaurantId((currentId) => {
+        if (currentId === restaurantId) return currentId;
+        if (!restaurants.some((restaurant) => restaurant.id === restaurantId)) return currentId;
+        return restaurantId;
+      });
+    });
+  }, [restaurants]);
 
   useEffect(() => {
     if (!selectedRestaurantId) return;
@@ -582,25 +600,6 @@ export default function TenantSettingsPage() {
                   Stammdaten, Öffnungszeiten, Buchung und Benachrichtigungen verwalten
                 </p>
               </div>
-            </div>
-            <div className="w-full lg:w-[320px]">
-              {loadingRestaurants ? (
-                <div className="h-10 animate-pulse rounded-md bg-muted" />
-              ) : (
-                <Select value={selectedRestaurantId} onValueChange={setSelectedRestaurantId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Restaurant auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {restaurants.map((restaurant) => (
-                      <SelectItem key={restaurant.id} value={restaurant.id}>
-                        {restaurant.name}
-                        {restaurant.is_suspended ? " (deaktiviert)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
           </div>
         </CardHeader>
